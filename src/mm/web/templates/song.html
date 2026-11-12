@@ -25,6 +25,13 @@
 {% endif %}
 {% endmacro %}
 
+{% macro about() %}
+<dl class="about">
+  <dt>Routine</dt><dd>{{ routine }}</dd>
+  <dt>Sound</dt><dd>{{ style }}</dd>
+</dl>
+{% endmacro %}
+
 {% block main %}
 {% if mode == "writing" %}
 <h1>Writing the words</h1>
@@ -34,40 +41,61 @@
 {% elif mode == "words" %}
 <h1>Do these words sound right?</h1>
 <p class="lead">No music is made until you say yes.</p>
-{% if from_template %}
-<p class="hint">This is our simple counting song with your steps in it.</p>
-{% endif %}
 {{ trouble() }}
-{{ words() }}
-<form method="post" action="{{ url }}/words">
-  <button class="primary" name="action" value="approve">Yes, make the song</button>
-</form>
-<p class="more"><a href="{{ url }}?edit=1">Change the words myself</a></p>
-{% if fresh_left > 0 %}
-<form method="post" action="{{ url }}/words">
-  <button class="plain" name="action" value="redraft">Write different words ({{ fresh_left }} left)</button>
-</form>
-{% endif %}
+<div class="split">
+  <div class="col-main">
+    {{ words() }}
+  </div>
+  <aside class="col-side">
+    {% if from_template %}
+    <p class="hint">This is our simple counting song with your steps in it.</p>
+    {% endif %}
+    <form method="post" action="{{ url }}/words">
+      <button class="primary" name="action" value="approve">Yes, make the song</button>
+    </form>
+    <p class="more"><a href="{{ url }}?edit=1">Change the words myself</a></p>
+    {% if fresh_left > 0 %}
+    <form method="post" action="{{ url }}/words">
+      <button class="plain" name="action" value="redraft">Write different words ({{ fresh_left }} left)</button>
+    </form>
+    {% endif %}
+    <p class="hint">The numbers show where each step of your routine is sung.</p>
+    {{ about() }}
+  </aside>
+</div>
 
 {% elif mode == "edit" %}
 <h1>Change the words</h1>
 <p class="lead">Edit any line. We check your changes the same way we check our own words.</p>
-<p class="hint">{name} is where the name is sung. Keep each line to {{ max_line_words }} words or fewer.</p>
 {{ trouble() }}
-<form method="post" action="{{ url }}/words" class="edit">
-  {% set count = namespace(line=0) %}
-  {% for section in edit_sections %}
-  <fieldset>
-    <legend class="sr">Part {{ loop.index }}</legend>
-    {% for text in section %}
-    {% set count.line = count.line + 1 %}
-    <input name="line" value="{{ text }}" maxlength="100" required autocomplete="off" aria-label="Line {{ count.line }}">
-    {% endfor %}
-  </fieldset>
-  {% endfor %}
-  <button class="primary" name="action" value="save">Save my changes and make the song</button>
-</form>
-<p class="more"><a href="{{ url }}">Leave the words as they were</a></p>
+<div class="split">
+  <div class="col-main">
+    <form method="post" action="{{ url }}/words" class="edit">
+      {% set count = namespace(line=0) %}
+      {% for section in edit_sections %}
+      <fieldset>
+        <legend class="sr">Part {{ loop.index }}</legend>
+        {% for text in section %}
+        {% set count.line = count.line + 1 %}
+        <input name="line" value="{{ text }}" maxlength="100" required autocomplete="off" aria-label="Line {{ count.line }}">
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+      <button class="primary" name="action" value="save">Save my changes and make the song</button>
+    </form>
+    <p class="more"><a href="{{ url }}">Leave the words as they were</a></p>
+  </div>
+  <aside class="col-side">
+    <h2>Keep to these</h2>
+    <ul class="plan">
+      <li>{name} is where the name is sung.</li>
+      <li>At most {{ max_line_words }} words in a line.</li>
+      <li>Both choruses have to match word for word.</li>
+      <li>Every step of your routine still has to be sung, in order.</li>
+    </ul>
+    {{ about() }}
+  </aside>
+</div>
 
 {% elif mode == "composing" %}
 <h1>Making the music</h1>
@@ -77,26 +105,41 @@
 {% elif mode == "listen" %}
 <h1>Listen before your child does</h1>
 <p class="lead">Play the whole song. If anything sounds wrong, say no.</p>
-<audio controls preload="metadata" src="{{ url }}/audio"></audio>
-{{ words() }}
-{{ trouble() }}
-<form method="post" action="{{ url }}/listen">
-  <label class="pick"><input type="checkbox" name="listened" value="yes"> I listened to the whole song</label>
-  <button class="primary" name="decision" value="approve">Yes, my child can hear this</button>
-  <label class="name" for="reason">If not, what was wrong? (optional)</label>
-  <input id="reason" name="reason" maxlength="200" autocomplete="off">
-  {% if can_retry %}
-  <button class="plain" name="decision" value="retry">No, make the music again</button>
-  {% endif %}
-  <button class="plain" name="decision" value="reject">No, do not use this song</button>
-</form>
+<div class="split">
+  <div class="col-main">
+    <audio controls preload="metadata" src="{{ url }}/audio"></audio>
+    {{ words() }}
+  </div>
+  <aside class="col-side">
+    {{ trouble() }}
+    <form method="post" action="{{ url }}/listen">
+      <label class="pick"><input type="checkbox" name="listened" value="yes"> I listened to the whole song</label>
+      <button class="primary" name="decision" value="approve">Yes, my child can hear this</button>
+      <label class="name" for="reason">If not, what was wrong? (optional)</label>
+      <input id="reason" name="reason" maxlength="200" autocomplete="off">
+      {% if can_retry %}
+      <button class="plain" name="decision" value="retry">No, make the music again</button>
+      {% endif %}
+      <button class="plain" name="decision" value="reject">No, do not use this song</button>
+    </form>
+    {{ about() }}
+  </aside>
+</div>
 
 {% elif mode == "ready" %}
 <h1>Ready to play</h1>
 <p class="lead">You checked the words and you listened. Play it when the routine starts.</p>
-<audio controls preload="metadata" src="{{ url }}/audio"></audio>
-{{ words() }}
-<p class="more"><a href="{{ home_url }}">Make another song</a></p>
+<div class="split">
+  <div class="col-main">
+    <audio controls preload="metadata" src="{{ url }}/audio"></audio>
+    {{ words() }}
+  </div>
+  <aside class="col-side">
+    <p class="done-note">Approved by you. Your child can hear this song.</p>
+    <p class="more"><a href="{{ home_url }}">Make another song</a></p>
+    {{ about() }}
+  </aside>
+</div>
 
 {% elif mode == "blocked" %}
 <h1>Paused for now</h1>

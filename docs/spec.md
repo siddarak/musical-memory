@@ -102,6 +102,20 @@ about songs. It calls the pipeline, which owns both approvals and every limit.
 | `GET .../audio` | The audio, once it has passed its checks. Honours byte ranges. |
 | `GET /healthz` | `{"status": "ok"}` and nothing else. |
 
+The team view sits behind its own codes, which are not participant codes. With no team codes
+configured there is no team view at all and its addresses are simply not found.
+
+| Address | What it shows |
+| --- | --- |
+| `GET /studio/{code}` | Every household's songs, where each one is, what it cost, and the event log. Refreshes itself. |
+| `GET /studio/{code}/journey` | The eight steps, the guardrails, the caps, what the checks cover, the decisions, and what is not built. |
+| `GET /studio/{code}/songs/{id}` | One song's whole trail: the brief, every step, every cost, the words, who approved what. |
+
+The team view is read-only. It accepts no form and changes no song. It never serves audio: only
+the household holding the link can play a song. It does show exactly which word a check matched,
+which the parent is never shown, because without that the team cannot tell a good refusal from a
+false alarm.
+
 What the web page promises. Each line has a test.
 
 - A participant code is the only key to a household's songs. An unknown code, a code taken off
@@ -167,9 +181,9 @@ Stated plainly so nobody assumes more than exists.
 - **One process only.** The per-song lock and the list of songs being worked on live in
   memory. The database store must use a row lock before a second process is added.
 - **No retry for a failed song.** A parent starts a new one, which uses one of the day's songs.
-- **Not hosted, and no sign-in beyond participant codes.** The page has only been run on a
-  development machine, in Chrome. It has not been tried on an iPhone, where audio is the usual
-  trouble spot.
+- **Not hosted, and no sign-in beyond participant codes.** The pages have only been run on a
+  development machine, in Chrome, at phone, tablet and desktop widths. They have not been tried
+  on an iPhone or an iPad, where audio is the usual trouble spot.
 - **No limit on how fast one visitor can send requests.**
 - **No private play link for a child yet.** A parent plays the song from their own page.
 

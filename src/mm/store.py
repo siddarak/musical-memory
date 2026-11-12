@@ -40,9 +40,12 @@ def _counted(songs: list[Song], household_id: str, start: datetime) -> int:
     )
 
 
+def _by_age(songs: list[Song]) -> list[Song]:
+    return sorted(songs, key=lambda song: (song.created_at, song.id), reverse=True)
+
+
 def _newest_first(songs: list[Song], household_id: str) -> list[Song]:
-    mine = [song for song in songs if song.household_id == household_id]
-    return sorted(mine, key=lambda song: song.created_at, reverse=True)
+    return _by_age([song for song in songs if song.household_id == household_id])
 
 
 def _spent(songs: list[Song], start: datetime) -> float:
@@ -68,6 +71,10 @@ class InMemoryStore:
     def songs_for_household(self, household_id: str) -> list[Song]:
         copies = [song.model_copy(deep=True) for song in self._songs.values()]
         return _newest_first(copies, household_id)
+
+    def recent_songs(self, limit: int = 50) -> list[Song]:
+        copies = [song.model_copy(deep=True) for song in self._songs.values()]
+        return _by_age(copies)[:limit]
 
     def songs_counted_since(self, household_id: str, start: datetime) -> int:
         return _counted(list(self._songs.values()), household_id, start)
@@ -114,6 +121,9 @@ class JsonDirStore:
 
     def songs_for_household(self, household_id: str) -> list[Song]:
         return _newest_first(self._all(), household_id)
+
+    def recent_songs(self, limit: int = 50) -> list[Song]:
+        return _by_age(self._all())[:limit]
 
     def songs_counted_since(self, household_id: str, start: datetime) -> int:
         return _counted(self._all(), household_id, start)

@@ -1,0 +1,75 @@
+{% extends "studio_base.html" %}
+{% block main %}
+<p class="more"><a href="{{ base }}">Back to what happened</a></p>
+<h1>{{ song.routine }}</h1>
+<p class="lead">
+  <span class="pill {% if song.done %}good{% elif song.stopped %}stop{% endif %}">{{ song.label }}</span>
+  Household {{ song.household }}, started {{ song.at }}.
+</p>
+
+{% if song.refusal %}
+<div class="problem"><p>We refused this brief:</p><ul>{% for reason in song.refusal %}<li>{{ reason }}</li>{% endfor %}</ul></div>
+{% endif %}
+{% if song.failure %}
+<div class="problem"><p>This song did not finish:</p><ul><li>{{ song.failure }}</li></ul></div>
+{% endif %}
+{% if song.blocked %}
+<p class="notice">{{ song.blocked }}</p>
+{% endif %}
+
+<div class="split">
+<div class="col-main">
+<h2>Every step it took</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Step</th><th>By</th><th>How it ended</th><th class="num-col">Cost</th><th class="num-col">Took</th><th>Note</th></tr></thead>
+  <tbody>
+    {% for attempt in song.attempts %}
+    <tr>
+      <td>{{ attempt.step }}</td>
+      <td>{{ attempt.by }}{% if attempt.paid %} <span class="pill pay">paid</span>{% endif %}</td>
+      <td><span class="pill {% if attempt.outcome == 'ok' %}good{% elif attempt.outcome in ('rejected', 'error', 'interrupted') %}stop{% endif %}">{{ attempt.outcome }}</span></td>
+      <td class="num-col">{% if attempt.cost %}${{ "%.4f"|format(attempt.cost) }}{% else %}&mdash;{% endif %}</td>
+      <td class="num-col">{% if attempt.ms %}{{ attempt.ms }} ms{% else %}&mdash;{% endif %}</td>
+      <td class="quiet">{{ attempt.detail }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if song.words %}
+<h2>The words</h2>
+<div class="sheet plain-sheet">{% for line in song.words.splitlines() %}{% if line %}<span class="line bare">{{ line }}</span>{% else %}<span class="gap"></span>{% endif %}{% endfor %}</div>
+{% endif %}
+</div>
+
+<aside class="col-side">
+<h2>The brief</h2>
+<dl class="about wide">
+  <dt>Routine</dt><dd>{{ song.routine }}</dd>
+  <dt>Steps</dt><dd><ol class="bare-list">{% for step in song.steps %}<li>{{ step }}</li>{% endfor %}</ol></dd>
+  <dt>Sound</dt><dd>{{ song.style }}</dd>
+  <dt>Age</dt><dd>{{ song.age_band }}</dd>
+  <dt>Name to sing</dt><dd>{% if song.has_nickname %}given{% else %}none, so "little one"{% endif %}</dd>
+</dl>
+
+<h2>What it took</h2>
+<dl class="about wide">
+  <dt>Words from</dt><dd>{{ song.source or "not written yet" }}</dd>
+  <dt>Rewrites</dt><dd>{{ song.rewrites }}</dd>
+  <dt>Music calls</dt><dd>{{ song.music_calls }}</dd>
+  <dt>Cost</dt><dd>${{ "%.3f"|format(song.spend) }}</dd>
+  {% if song.word_count %}<dt>Length</dt><dd>{{ song.word_count }} words{% if song.audio_seconds %}, {{ "%.0f"|format(song.audio_seconds) }} seconds{% endif %}</dd>{% endif %}
+  {% if song.transcript_match is not none %}<dt>Words heard</dt><dd>{{ "%.0f"|format(song.transcript_match * 100) }}% of the lyrics</dd>{% endif %}
+</dl>
+
+<h2>Who approved it</h2>
+<dl class="about wide">
+  <dt>The words</dt><dd>{{ song.words_approved_by or "not yet" }}</dd>
+  <dt>The song</dt><dd>{{ song.audio_approved_by or "not yet" }}</dd>
+</dl>
+<p class="hint">Only the household holding the link can play the song. This page shows what happened, never the audio. The notes say exactly which word a check matched, which the parent is never shown.</p>
+</aside>
+</div>
+{% endblock %}

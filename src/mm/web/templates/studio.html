@@ -1,0 +1,80 @@
+{% extends "studio_base.html" %}
+{% block main %}
+<h1>What happened</h1>
+<p class="lead">Every song this service has been asked for, and every step it took. This page refreshes itself.</p>
+
+{% if not numbers.generation_on %}
+<p class="notice"><b>Song making is paused.</b> The kill switch is off, so no paid call can be made right now.</p>
+{% endif %}
+
+<div class="tiles">
+  <div class="tile"><b>{{ numbers.songs }}</b><span>songs asked for</span></div>
+  <div class="tile"><b>{{ numbers.published }}</b><span>finished and approved</span></div>
+  <div class="tile"><b>{{ numbers.waiting_on_a_person }}</b><span>waiting for a person</span></div>
+  <div class="tile"><b>{{ numbers.refused }}</b><span>refused by the checks</span></div>
+  <div class="tile"><b>${{ "%.2f"|format(numbers.spend) }}</b><span>spent, of ${{ "%.2f"|format(numbers.budget) }} a day</span></div>
+  <div class="tile"><b>{% if numbers.calls_per_song %}{{ numbers.calls_per_song }}{% else %}&mdash;{% endif %}</b><span>music calls per finished song</span></div>
+</div>
+
+<h2>Where the songs are now</h2>
+<ol class="journey tight">
+  {% for step in journey %}
+  <li class="{% if step.is_person %}person{% endif %}">
+    <span class="num">{{ step.number }}</span>
+    <span class="what">
+      <b>{{ step.name }}</b>
+      <span class="who">{{ step.who }}</span>
+    </span>
+    <span class="count">{% if step.here %}{{ step.here }} here{% else %}&mdash;{% endif %}</span>
+  </li>
+  {% endfor %}
+</ol>
+
+<h2>Songs</h2>
+{% if songs %}
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Routine</th><th>Household</th><th>Where it got to</th><th>Words</th><th class="num-col">Music calls</th><th class="num-col">Cost</th><th>Started</th></tr>
+  </thead>
+  <tbody>
+    {% for song in songs %}
+    <tr>
+      <td><a href="{{ base }}/songs/{{ song.id }}">{{ song.routine }}</a></td>
+      <td class="code">{{ song.household }}</td>
+      <td><span class="pill {% if song.done %}good{% elif song.stopped %}stop{% endif %}">{{ song.label }}</span></td>
+      <td>{{ song.source or "&mdash;"|safe }}{% if song.rewrites %}, {{ song.rewrites }} rewrite{{ "s" if song.rewrites > 1 }}{% endif %}</td>
+      <td class="num-col">{{ song.music_calls }}</td>
+      <td class="num-col">${{ "%.3f"|format(song.spend) }}</td>
+      <td class="when">{{ song.at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="notice">No songs yet. Open a parent link and make one, and it will appear here.</p>
+{% endif %}
+
+<h2>What parents did</h2>
+{% if events %}
+<div class="scroll">
+<table>
+  <thead><tr><th>Time</th><th>Household</th><th>What happened</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for event in events %}
+    <tr>
+      <td class="when">{{ event.at }}</td>
+      <td class="code">{{ event.household }}</td>
+      <td>{{ event.name }}</td>
+      <td class="quiet">{{ event.detail }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">The log records which step happened and when. It never holds what a parent typed.</p>
+{% else %}
+<p class="notice">Nothing logged yet.</p>
+{% endif %}
+{% endblock %}

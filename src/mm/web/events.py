@@ -21,6 +21,8 @@ def _utc_now() -> datetime:
 class EventLog(Protocol):
     def record(self, household: str, name: str, song: str | None = None, **detail: Any) -> None: ...
 
+    def recent(self, limit: int = 100) -> list[dict[str, Any]]: ...
+
 
 def _entry(
     clock: Callable[[], datetime],
@@ -46,6 +48,9 @@ class MemoryEvents:
     def record(self, household: str, name: str, song: str | None = None, **detail: Any) -> None:
         self.items.append(_entry(self._clock, household, name, song, detail))
 
+    def recent(self, limit: int = 100) -> list[dict[str, Any]]:
+        return list(reversed(self.items[-limit:]))
+
     def names(self) -> list[str]:
         return [item["name"] for item in self.items]
 
@@ -63,3 +68,21 @@ class JsonlEvents:
         line = json.dumps(_entry(self._clock, household, name, song, detail))
         with self._lock, self.path.open("a", encoding="utf-8") as file:
             file.write(line + "\n")
+
+    def recent(self, limit: int = 100) -> list[dict[str, Any]]:
+        """The newest entries first. A line we cannot read is skipped, not raised."""
+        try:
+            lines = self.path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return []
+        out: list[dict[str, Any]] = []
+        for line in reversed(lines):
+            if len(out) >= limit:
+                break
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(entry, dict):
+                out.append(entry)
+        return out

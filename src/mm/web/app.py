@@ -26,7 +26,7 @@ from mm.domain import Song, SongStatus
 from mm.pipeline import Blocked, LimitReached, LyricsNotAccepted, Pipeline, WrongState
 from mm.presets import STYLE_PRESETS
 from mm.safety import rules
-from mm.web import views
+from mm.web import studio, views
 from mm.web.access import Participants
 from mm.web.events import EventLog
 from mm.web.runner import Runner, ThreadRunner
@@ -107,7 +107,14 @@ def create_app(
     participants: Participants,
     events: EventLog,
     runner: Runner | None = None,
+    team: Participants | None = None,
 ) -> FastAPI:
+    """The web app.
+
+    `participants` holds the codes families use. `team` holds the separate codes that open the
+    team view, which is read-only and shows every household's songs; with none, there is no
+    team view at all and its addresses are simply not found.
+    """
     store = pipeline.store
     work: Runner = runner or ThreadRunner(pipeline)
     kicks: defaultdict[str, int] = defaultdict(int)
@@ -127,11 +134,15 @@ def create_app(
     # No API pages: the forms are the whole surface.
     app = FastAPI(title="Musical Memory", docs_url=None, redoc_url=None, openapi_url=None)
 
+    def team_knows(code: str) -> bool:
+        return team is not None and team.knows(code)
+
     def page(name: str, status: int = 200, **context: Any) -> HTMLResponse:
         context.setdefault("refresh", None)
         context.setdefault("step", None)
         context.setdefault("step_name", "")
         context.setdefault("home_url", None)
+        context.setdefault("journey", views.JOURNEY)
         return HTMLResponse(templates.get_template(name).render(**context), status_code=status)
 
     def problem_page(status: int, message: str | None = None) -> HTMLResponse:
@@ -263,6 +274,65 @@ def create_app(
             raise HTTPException(404)
         headers = {"Cache-Control": "public, max-age=86400"}
         return Response(static[name], media_type=_STATIC[name], headers=headers)
+
+    # ---- the team view: read-only, and it never touches a song ------------------------------
+
+    def team_page(name: str, code: str, tab: str, **context: Any) -> HTMLResponse:
+        return page(name, base=f"/studio/{code}", tab=tab, **context)
+
+    @app.get("/studio/{code}")
+    def team_live(code: str) -> HTMLResponse:
+        if not team_knows(code):
+            raise HTTPException(404)
+        songs = store.recent_songs(100)
+        return team_page(
+            "studio.html",
+            code,
+            "live",
+            title="What happened",
+            refresh=10,
+            numbers=studio.numbers(songs, pipeline.limits, pipeline.controls.generation_enabled()),
+            journey=studio.journey_with_counts(songs),
+            songs=[studio.song_row(song) for song in songs],
+            events=[studio.event_row(entry) for entry in events.recent(60)],
+        )
+
+    @app.get("/studio/{code}/journey")
+    def team_journey(code: str) -> HTMLResponse:
+        if not team_knows(code):
+            raise HTTPException(404)
+        limits = pipeline.limits
+        worst = limits.max_music_calls_per_song * limits.music_price_per_minute_usd
+        return team_page(
+            "studio_journey.html",
+            code,
+            "journey",
+            title="How it works",
+            journey=studio.journey_with_counts([]),
+            guardrails=studio.GUARDRAILS,
+            decisions=studio.DECISIONS,
+            gaps=studio.GAPS,
+            checks=studio.checks_summary(),
+            redteam=studio.REDTEAM,
+            limits=limits,
+            worst_case=worst,
+        )
+
+    @app.get("/studio/{code}/songs/{song_id}")
+    def team_song(code: str, song_id: str) -> HTMLResponse:
+        if not team_knows(code):
+            raise HTTPException(404)
+        try:
+            found = store.get(song_id)
+        except (KeyError, ValueError):
+            raise HTTPException(404) from None
+        return team_page(
+            "studio_song.html",
+            code,
+            "live",
+            title=found.brief.routine,
+            song=studio.song_detail(found),
+        )
 
     # ---- a household's pages ----------------------------------------------------------------
 

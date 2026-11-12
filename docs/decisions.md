@@ -122,3 +122,30 @@ screens every brief itself.
 
 Why: a parent can fix a mistake in place, refused briefs do not pile up as songs, and the
 pipeline stays the one place that decides.
+
+## 14. One page per thing a person is doing, in two columns
+
+**Decided.** On a tablet or a laptop a page splits in two: what you are reading on the left, what
+you can do about it on the right. On a phone it stays one column.
+
+Why: the decision a parent is being asked to make is about something they have to read first, so
+the words and the buttons belong on screen together. The phone layout is unchanged because there
+is no room for a second column at that width.
+
+## 15. A team view, separate from the parent's pages
+
+**Decided.** `/studio/{code}` shows every household's songs, every step each one took, the event
+log, and the design itself: the eight steps, the guardrails, the caps and the decisions. It is
+read-only and sits behind its own codes.
+
+Why: the service makes claims about itself (an adult always listens first, spending cannot run
+away, every step of a routine is sung) and a reviewer should be able to check them without
+reading the code or opening a database. It also gives the team one place to see what a study
+session actually did.
+
+What it costs: one more door to keep shut. The team codes are separate from participant codes,
+neither opens the other, and the team view never serves audio.
+
+The figures on its pages are not retyped from the documentation. The step counts come from the
+pipeline's own statuses, the word-list sizes from the lists, and the hostile-prompt results from
+the dataset, each checked by a test, so the page cannot quietly drift from what the code does.

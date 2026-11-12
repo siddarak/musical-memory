@@ -1,0 +1,63 @@
+{% extends "studio_base.html" %}
+{% block main %}
+<h1>How it works</h1>
+<p class="lead">A parent types a routine and gets a short song for a child aged 3 to 6. Eight steps stand between those two things. Two of them wait for a person, and nothing can skip them.</p>
+
+<h2>The eight steps</h2>
+<ol class="journey">
+  {% for step in journey %}
+  <li class="{% if step.is_person %}person{% endif %}">
+    <span class="num">{{ step.number }}</span>
+    <span class="what">
+      <b>{{ step.name }}</b>
+      <span class="who">{{ step.who }}</span>
+      <span class="does">{{ step.does }}</span>
+      <span class="guard"><b>Refuses:</b> {{ step.guard }}</span>
+    </span>
+  </li>
+  {% endfor %}
+</ol>
+
+<h2>Rules that do not bend</h2>
+<dl class="rules">
+  {% for name, why in guardrails %}
+  <dt>{{ name }}</dt>
+  <dd>{{ why }}</dd>
+  {% endfor %}
+</dl>
+
+<h2>The caps</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Cap</th><th class="num-col">Now</th></tr></thead>
+  <tbody>
+    <tr><td>Rewrites of a draft before we use words a person wrote</td><td class="num-col">{{ limits.max_rewrites }}</td></tr>
+    <tr><td>Fresh drafts a parent may ask for</td><td class="num-col">{{ limits.max_fresh_drafts }}</td></tr>
+    <tr><td>Music calls per song, including retries</td><td class="num-col">{{ limits.max_music_calls_per_song }}</td></tr>
+    <tr><td>Extra versions an adult may ask for after listening</td><td class="num-col">{{ limits.max_regenerations }}</td></tr>
+    <tr><td>Songs per household per day</td><td class="num-col">{{ limits.songs_per_household_per_day }}</td></tr>
+    <tr><td>Spending per day, everyone together</td><td class="num-col">${{ "%.2f"|format(limits.daily_budget_usd) }}</td></tr>
+    <tr><td>Worst case for one song, at ${{ "%.2f"|format(limits.music_price_per_minute_usd) }} a minute</td><td class="num-col">${{ "%.2f"|format(worst_case) }}</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>What the checks cover</h2>
+<p>The free layer runs first and never calls a model: <b>{{ checks.unsafe_words }}</b> unsafe words and phrases, <b>{{ checks.brand_names }}</b> artist and character names, and the shape of the song itself, which has to be {{ checks.min_words }} to {{ checks.max_words }} words with at most {{ checks.max_line_words }} words in a line. A parent picks one of <b>{{ checks.styles }}</b> styles; there is no free-text style anywhere.</p>
+<p>Against {{ redteam.total }} hostile prompts written to break it, this layer stops <b>{{ redteam.stopped }}</b>. The other {{ redteam.for_judge }} need judgement that a word list cannot do, such as an unsafe instruction in ordinary words or a routine written in another language. Those are the model judge's job.</p>
+
+<h2>What we chose, and what it costs us</h2>
+<dl class="rules">
+  {% for name, what, why in decisions %}
+  <dt>{{ name }}</dt>
+  <dd>{{ what }} <span class="quiet">{{ why }}</span></dd>
+  {% endfor %}
+</dl>
+
+<h2>Not built yet</h2>
+<ul class="plan">
+  {% for gap in gaps %}
+  <li>{{ gap }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -18,10 +18,17 @@
 </header>
 <main>
 {% if step %}
-<p class="where">
-  <span class="dots" aria-hidden="true">{% for n in range(1, 5) %}<span class="dot{% if n <= step %} on{% endif %}"></span>{% endfor %}</span>
-  Step {{ step }} of 4: {{ step_name }}
-</p>
+<nav class="rail" aria-label="Where you are">
+  <ol>
+    {% for name in journey %}
+    <li class="{% if loop.index < step %}done{% elif loop.index == step %}now{% endif %}">
+      <span class="pip" aria-hidden="true">{{ loop.index }}</span>
+      <span class="what">{{ name }}</span>
+      {% if loop.index == step %}<span class="sr">(you are here)</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
 {% endif %}
 {% block main %}{% endblock %}
 </main>

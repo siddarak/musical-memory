@@ -174,7 +174,7 @@ def _eval(args: argparse.Namespace) -> int:
     return 1 if refused or stuck else 0
 
 
-def build_site(data: Path, codes: list[str]) -> Any:
+def build_site(data: Path, codes: list[str], team: list[str] | None = None) -> Any:
     """The web app on fake providers, saving songs and the event log under `data`."""
     from mm.web import create_app
     from mm.web.access import Allowlist
@@ -187,6 +187,7 @@ def build_site(data: Path, codes: list[str]) -> Any:
         participants=Allowlist(codes),
         events=JsonlEvents(data / "events.jsonl"),
         runner=ThreadRunner(pipeline),
+        team=Allowlist(team or []),
     )
 
 
@@ -198,18 +199,32 @@ def _serve(args: argparse.Namespace) -> int:
     except ImportError:
         print('The web page needs extra packages. Install them with: pip install -e ".[web]"')
         return 2
+    where = f"http://{args.host}:{args.port}"
     from_env = os.environ.get("PARTICIPANT_CODES", "")
     codes = [code.strip() for code in [*args.code, *from_env.split(",")] if code.strip()]
-    if codes:
-        # Links are not printed here: on a hosted service this output ends up in its logs.
-        print(f"{len(codes)} participant code(s) loaded.")
-    else:
+    made_here = not codes
+    if made_here:
         codes = [new_code()]
-        print("No participant codes were given, so here is one for this run only:")
-        print(f"  http://{args.host}:{args.port}/h/{codes[0]}")
-    app = build_site(args.data, codes)
-    print(FAKE_NOTE + " The audio is a test tone.")
-    # The access log is off because every address contains a participant code.
+    team = [code.strip() for code in args.team_code if code.strip()] or [new_code()]
+
+    print()
+    if made_here:
+        # On a machine of your own this is the whole setup. On a hosted service, pass --code
+        # instead: anything printed here would land in that service's logs.
+        print("A parent opens this (it works on a phone, a tablet or a laptop):")
+        print(f"  {where}/h/{codes[0]}")
+    else:
+        print(f"{len(codes)} participant code(s) loaded. Their links are not printed here.")
+    print()
+    print("The team watches this. It shows every song, every step and every decision:")
+    print(f"  {where}/studio/{team[0]}")
+    print()
+    print("Each link is a password. Anyone who has one can use it. Stop the server with Ctrl-C.")
+    print(FAKE_NOTE + " The audio is a test tone, not music.")
+    print()
+
+    app = build_site(args.data, codes, team)
+    # The access log is off because every address contains a code.
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning", access_log=False)
     return 0
 
@@ -257,6 +272,9 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--data", type=Path, default=Path("data"), help="where songs are saved")
     serve.add_argument("--code", action="append", default=[], help="a participant code to accept")
+    serve.add_argument(
+        "--team-code", action="append", default=[], help="a code that opens the team view"
+    )
     serve.set_defaults(run=_serve)
 
     codes = commands.add_parser("codes", help="make new participant codes")
