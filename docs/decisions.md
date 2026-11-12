@@ -161,3 +161,27 @@ working, the case that depended on it changes or fails, and the team view shows 
 
 What it costs: the cases have to be kept in step with the pipeline, and the seeding needs the
 daily caps lifted for itself. Both are stated where they happen and covered by tests.
+
+## 17. A browser copy, so the prototype has a link
+
+**Decided.** `docs/` holds a single-page version of the product, served by GitHub Pages at
+https://siddarak.github.io/musical-memory/. It ports the service's rules into JavaScript: the
+same word lists, the same checks on a brief and on finished lyrics, the same eight steps, the
+same two human approvals, the same caps.
+
+Why: a prototype that needs Python installed before anyone can see it is not a prototype anyone
+will look at. Teammates, a class, a room with a projector: all of them need a link. A static
+host cannot run the Python service, so the only way to get one without paying for hosting is to
+reimplement the rules where the browser can run them.
+
+What it costs: two copies of the same rules, which can drift. `tests/test_preview.py` is the
+answer to that. The lists, the styles, the eight steps, the guardrails, the decisions, the
+caps, the stylesheet and the font files are all checked against the service's own, so a change
+in one that is not carried to the other fails the build.
+
+It also breaks rule 9 of `CLAUDE.md`, which says no scripts on any page. That rule protects a
+family's data on the real service. The copy keeps the half that still applies, loading nothing
+from any other site, and stores nothing at all, which the page says plainly.
+
+What stays true: the copy cannot write a song. Its words come from the template and its audio
+is the test tone, and the page says so above the player rather than leaving anyone to guess.

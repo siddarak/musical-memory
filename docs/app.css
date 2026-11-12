@@ -1,0 +1,845 @@
+/* Musical Memory: one stylesheet, no scripts.
+
+   One column on a phone. On a tablet or a laptop the page splits in two: what you are reading
+   on the left, what you can do about it on the right, so the song and its buttons are on screen
+   together without scrolling.
+
+   The song sheet is the one decorated thing on any page. Its yellow beads mark where each step
+   of the routine is sung, so a parent can see at a glance that every step made it into the
+   song. Everything else stays quiet: navy ink on cool white, large targets. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --ink: #1b2a49;   /* night sky: text, links, the main button */
+  --paper: #f6f8fc; /* the page */
+  --sheet: #ffffff; /* the song sheet and the boxes you type in */
+  --rule: #d3dae8;  /* thin lines */
+  --quiet: #4d5b7a; /* hints */
+  --lamp: #f5c84b;  /* nightlight yellow: step beads and the waiting dots, nothing else */
+  --plum: #8a2846;  /* something to fix */
+  --page: 34rem;    /* how wide the content may be; widened at the breakpoints below */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 112.5%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.top,
+main,
+footer {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tag,
+.hint,
+footer {
+  color: var(--quiet);
+  font-size: 0.833rem;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Type: a minor-third scale from an 18px base. */
+
+h1 {
+  font-size: 1.728rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 1.1rem 0 0.4rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2.4rem 0 0.4rem;
+}
+
+.col-side h2:first-child {
+  margin-top: 0;
+}
+
+.lead {
+  font-size: 1.2rem;
+  line-height: 1.4;
+  max-width: 34rem;
+  margin: 0 0 1.2rem;
+}
+
+.hint {
+  margin: 0.15rem 0 0.45rem;
+}
+
+.keep {
+  margin-top: 2.4rem;
+}
+
+/* Where you are in the four steps. On a phone only the step you are on is named. */
+
+.rail {
+  margin: 1.2rem 0 0;
+}
+
+.rail ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--quiet);
+  font-size: 0.833rem;
+}
+
+.rail li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pip {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--sheet);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rail .done .pip {
+  border-color: var(--quiet);
+  color: var(--quiet);
+}
+
+.rail .now .pip {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.rail .now {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.rail li:not(.now) .what {
+  display: none;
+}
+
+/* The two-column split, from tablet width up. */
+
+.split {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.two-up {
+  display: grid;
+  gap: 0;
+}
+
+@media (min-width: 46rem) {
+  :root {
+    --page: 46rem;
+  }
+
+  .rail li:not(.now) .what {
+    display: inline;
+  }
+
+  .rail ol {
+    gap: 0.5rem 1.2rem;
+  }
+
+  .split {
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .col-side {
+    position: sticky;
+    top: 1.5rem;
+    padding-left: 1.6rem;
+    border-left: 1px solid var(--rule);
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --page: 60rem;
+  }
+
+  .split {
+    grid-template-columns: 1.6fr 1fr;
+    gap: 3rem;
+  }
+
+  .two-up {
+    grid-template-columns: 1fr 1fr;
+    gap: 0 2rem;
+  }
+
+  .two-up > fieldset:first-child,
+  .two-up > div > fieldset:first-child {
+    margin-top: 1.5rem;
+  }
+}
+
+/* The song sheet. On a phone the type is a little smaller so that a sung line stays on one
+   printed line. A line that still wraps steps in, so it is never mistaken for a new line. */
+
+.sheet {
+  position: relative;
+  margin: 1.2rem 0;
+  padding: 1rem 0.75rem 1rem 0;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  line-height: 1.6;
+}
+
+.sheet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.4rem;
+  width: 1px;
+  background: var(--rule);
+}
+
+.verse {
+  margin: 0 0 1.1em;
+}
+
+.verse:last-child {
+  margin-bottom: 0;
+}
+
+.line {
+  display: block;
+  position: relative;
+  padding-left: 3.9rem;
+  text-indent: -0.9rem;
+}
+
+.bead {
+  position: absolute;
+  left: 0.45rem;
+  top: 0.05em;
+  text-indent: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--lamp);
+  font-size: 0.833rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (min-width: 30rem) {
+  .sheet {
+    padding-right: 1rem;
+    font-size: 1.2rem;
+  }
+
+  .sheet::before {
+    left: 2.9rem;
+  }
+
+  .line {
+    padding-left: 4.6rem;
+  }
+
+  .bead {
+    left: 0.7rem;
+    top: 0.16em;
+  }
+}
+
+/* Forms. */
+
+.name,
+legend {
+  display: block;
+  padding: 0;
+  font-weight: 700;
+}
+
+.name {
+  margin-top: 1.5rem;
+}
+
+.name + input {
+  margin-top: 0.35rem;
+}
+
+fieldset {
+  border: 0;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  min-width: 0;
+}
+
+input:not([type="radio"]):not([type="checkbox"]) {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--quiet);
+  border-radius: 0.4rem;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  width: 1.3rem;
+  height: 1.3rem;
+  margin: 0;
+  accent-color: var(--ink);
+  flex: none;
+}
+
+.steps-in {
+  margin: 0;
+  padding-left: 1.6rem;
+}
+
+.steps-in li {
+  padding-left: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.steps-in li::marker {
+  font-weight: 700;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.9rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.edit input {
+  margin-bottom: 0.4rem;
+}
+
+.edit fieldset {
+  margin: 0 0 1rem;
+}
+
+button {
+  display: block;
+  width: 100%;
+  min-height: 3.2rem;
+  margin-top: 1rem;
+  padding: 0.4rem 1rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.plain {
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.more {
+  margin: 1.2rem 0 0;
+}
+
+/* The side column: what happens next, the rules for an edit, the song's own details. */
+
+.plan {
+  margin: 0;
+  padding-left: 1.3rem;
+  font-size: 0.95rem;
+}
+
+.plan li {
+  margin-bottom: 0.6rem;
+}
+
+.about {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.8rem;
+  margin: 1.6rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.833rem;
+}
+
+.about dt {
+  color: var(--quiet);
+}
+
+.about dd {
+  margin: 0;
+}
+
+.done-note {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--lamp);
+  background: var(--sheet);
+  font-weight: 700;
+}
+
+/* Things to fix, and other notes. */
+
+.problem {
+  margin: 1.2rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--plum);
+  background: var(--sheet);
+  color: var(--plum);
+}
+
+.problem p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.problem ul,
+.reasons {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.reasons {
+  font-size: 1.2rem;
+}
+
+.notice {
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--ink);
+  background: var(--sheet);
+}
+
+.songs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.songs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.songs span {
+  color: var(--quiet);
+  font-size: 0.833rem;
+  text-align: right;
+}
+
+audio {
+  display: block;
+  width: 100%;
+  margin: 1.2rem 0;
+}
+
+/* Waiting: three beads that swell in turn, like notes. */
+
+.working {
+  display: flex;
+  gap: 0.7rem;
+  margin: 2.4rem 0;
+}
+
+.working span {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--lamp);
+  animation: hum 1.2s ease-in-out infinite;
+}
+
+.working span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.working span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes hum {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working span {
+    animation: none;
+  }
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 0.8rem;
+  padding-bottom: 2rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* For screen readers only. */
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------------------------------
+   The team view. Wider than the parent pages, because it is read on a laptop and holds
+   tables. Same ink and paper; the only new colours are the two state pills.
+   ------------------------------------------------------------------------------------------ */
+
+body.studio {
+  --page: 68rem;
+}
+
+.tabs {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem 0;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.tabs a {
+  padding-bottom: 0.4rem;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  color: var(--quiet);
+}
+
+.tabs a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--ink);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px;
+  margin: 1.4rem 0;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem;
+  background: var(--sheet);
+}
+
+.tile b {
+  font-size: 1.728rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile span {
+  color: var(--quiet);
+  font-size: 0.78rem;
+}
+
+/* The eight steps. The two a person does are marked with a yellow edge, because that is the
+   claim the whole design rests on. */
+
+.journey {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.journey li {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.9rem 0.9rem 0.9rem 0.8rem;
+  border-bottom: 1px solid var(--rule);
+  border-left: 4px solid transparent;
+}
+
+.journey .person {
+  border-left-color: var(--lamp);
+  background: var(--sheet);
+}
+
+.journey .num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.journey .person .num {
+  border-color: var(--ink);
+  background: var(--lamp);
+}
+
+.journey .what {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.journey .who {
+  color: var(--quiet);
+  font-size: 0.78rem;
+}
+
+.journey .does,
+.journey .guard {
+  font-size: 0.9rem;
+  max-width: 48rem;
+}
+
+.journey .guard {
+  color: var(--quiet);
+}
+
+.journey .count {
+  flex: none;
+  color: var(--quiet);
+  font-size: 0.833rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey.tight li {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.journey.tight .what {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+/* Tables. */
+
+.scroll {
+  overflow-x: auto;
+  margin: 0.6rem 0 1.4rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.78rem;
+  color: var(--quiet);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.num-col {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Only the last column may sit flush with the edge; otherwise figures run into the next one. */
+th:last-child,
+td:last-child {
+  padding-right: 0;
+}
+
+.when,
+.code {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.code {
+  color: var(--quiet);
+}
+
+td.quiet {
+  color: var(--quiet);
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 1rem;
+  border: 1.5px solid var(--rule);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill.good {
+  border-color: #1f6b4a;
+  color: #1f6b4a;
+}
+
+.pill.stop {
+  border-color: var(--plum);
+  color: var(--plum);
+}
+
+.pill.pay {
+  border-color: var(--lamp);
+  background: var(--lamp);
+  color: var(--ink);
+}
+
+/* Definition lists used for the rules and the decisions. */
+
+.rules {
+  margin: 0.6rem 0 1.4rem;
+}
+
+.rules dt {
+  margin-top: 1rem;
+  font-weight: 700;
+}
+
+.rules dd {
+  margin: 0.2rem 0 0;
+  max-width: 48rem;
+}
+
+.rules .quiet {
+  color: var(--quiet);
+}
+
+.about.wide {
+  font-size: 0.9rem;
+}
+
+.bare-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.plain-sheet {
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.plain-sheet::before {
+  display: none;
+}
+
+.line.bare {
+  padding-left: 0;
+  text-indent: 0;
+}
+
+.gap {
+  display: block;
+  height: 0.8rem;
+}

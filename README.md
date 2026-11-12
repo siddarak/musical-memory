@@ -6,6 +6,19 @@ audio, and waits for an adult to listen before any child hears it.
 Built by Team 118 for TECH 5900 Product Studio at Cornell Tech, with Claude as a coding
 assistant. Siddhesh Darak, Lemuel Sumardy, Daniel Xing.
 
+## Click it
+
+**https://siddarak.github.io/musical-memory/**
+
+That is the browser copy: the same screens, the same word lists, the same checks and the same
+caps, with no install. Type a routine a check should refuse and it is refused there too. It
+opens with eight songs already in it, so both the parent side and the team view have something
+to look at.
+
+Two things the browser copy cannot do, and it says so on the page: the words come from a
+template rather than a model, and the audio is the 60 second test tone. The Python service
+below is the real thing.
+
 ## Run it
 
 You need Python 3.11 or newer. Nothing else: no Docker, no database, no hosting account.
@@ -89,6 +102,7 @@ src/mm/
   cli.py           the mm command
   demo.py          the forced test cases behind mm demo
   web/             the pages: app.py holds every address, and asks the pipeline
+docs/              the browser copy served at the link above, plus the spec and decisions
 evals/datasets/    30 test briefs, 37 hostile prompts
 tests/             the promises this service makes, one test each
 docs/spec.md       what the pipeline must do (read this before changing it)
@@ -107,6 +121,10 @@ song, and to test each one.
 4. The only things kept about a child are an age band and an optional nickname.
 5. No artist, song, show or character names go to the music provider.
 6. No scripts on any page, and nothing loaded from another site.
+
+Rule 6 is about the service. The browser copy in `docs/` has to be a script, because that is
+what a static host can run; it keeps the second half of the rule, loads nothing from anywhere
+else, and stores nothing. Tests check that its lists and figures still match the service's.
 
 `CLAUDE.md` has the longer version that coding agents follow. The team view's "How it works"
 page explains all of this to a reader who has never seen the code.
