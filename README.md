@@ -10,6 +10,10 @@ assistant. Siddhesh Darak, Lemuel Sumardy, Daniel Xing.
 
 **https://siddarak.github.io/musical-memory/**
 
+If that link 404s, Pages has not been switched on yet. One person does it once: **Settings,
+Pages, Source: Deploy from a branch, branch `main`, folder `/docs`, Save.** It is live about a
+minute later, and every push to main republishes it.
+
 That is the browser copy: the same screens, the same word lists, the same checks and the same
 caps, with no install. Type a routine a check should refuse and it is refused there too. It
 opens with eight songs already in it, so both the parent side and the team view have something
