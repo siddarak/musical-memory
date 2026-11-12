@@ -44,3 +44,8 @@ jobs:
       - name: Tests
         run: pytest -q
 
+      - name: Hostile prompts against the checks
+        run: mm redteam
+
+      - name: Test briefs end to end on fake providers
+        run: mm eval

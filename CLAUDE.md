@@ -30,16 +30,17 @@ different tool or design.
 ```bash
 pip install -e ".[dev]"            # once
 pytest                             # all tests, a few seconds
+pytest tests/test_pipeline.py -k crash
 ruff check . && ruff format .      # lint and format
 mypy                               # types, strict
 python scripts/check_secrets.py    # before every commit
+mm redteam                         # hostile prompts against the checks
+mm eval                            # 30 test briefs end to end on fakes
 ```
 
 All of these must pass before you say a change is done. Say what you ran and what it printed.
 
 ## Map
-
-The pipeline files listed here arrive in the next pull request.
 
 - `src/mm/pipeline.py`: the steps, the approvals and every limit (`Limits`). The order of steps
   lives in `_STEPS` at the bottom. Models never choose the next step.
