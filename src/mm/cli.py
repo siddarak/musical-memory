@@ -229,6 +229,51 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _demo(args: argparse.Namespace) -> int:
+    """Fill a folder with forced test cases, then serve them. No keys, no setup."""
+    import shutil
+
+    from mm.demo import CASES, Clock, seed
+    from mm.web.access import new_code
+    from mm.web.events import JsonlEvents
+
+    if args.data.exists() and not args.keep:
+        shutil.rmtree(args.data)
+    clock = Clock()  # shared, so the event log and the songs agree about when things happened
+    store = JsonDirStore(args.data)
+    events = JsonlEvents(args.data / "events.jsonl", clock)
+    songs = seed(store, events, clock=clock)
+
+    print()
+    print(f"Seeded {len(songs)} songs, each run through the real eight steps:")
+    for case, song in zip(CASES, songs, strict=True):
+        print(f"  {song.status.value:<13} {case.shows}")
+
+    codes = sorted({song.household_id for song in songs})
+    team = args.team_code or new_code()
+    where = f"http://{args.host}:{args.port}"
+    print()
+    print("Open a family's pages:")
+    for code in codes:
+        print(f"  {where}/h/{code}")
+    print()
+    print("Open the team view, which shows all of them at once:")
+    print(f"  {where}/studio/{team}")
+    print()
+    print(FAKE_NOTE + " The audio is a test tone, not music.")
+    print("Stop the server with Ctrl-C.")
+    print()
+
+    try:
+        import uvicorn
+    except ImportError:
+        print('The web page needs extra packages. Install them with: pip install -e ".[web]"')
+        return 2
+    app = build_site(args.data, codes, [team])
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning", access_log=False)
+    return 0
+
+
 def _codes(args: argparse.Namespace) -> int:
     from mm.web.access import new_code
 
@@ -276,6 +321,16 @@ def main(argv: list[str] | None = None) -> int:
         "--team-code", action="append", default=[], help="a code that opens the team view"
     )
     serve.set_defaults(run=_serve)
+
+    demo = commands.add_parser(
+        "demo", help="seed forced test cases and serve them, to see the whole product"
+    )
+    demo.add_argument("--host", default="127.0.0.1")
+    demo.add_argument("--port", type=int, default=8000)
+    demo.add_argument("--data", type=Path, default=Path("demo-data"))
+    demo.add_argument("--team-code", default="", help="a code that opens the team view")
+    demo.add_argument("--keep", action="store_true", help="add to what is there, do not wipe it")
+    demo.set_defaults(run=_demo)
 
     codes = commands.add_parser("codes", help="make new participant codes")
     codes.add_argument("--count", type=int, default=1)

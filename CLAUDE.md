@@ -41,6 +41,7 @@ python scripts/check_secrets.py    # before every commit
 mm redteam                         # hostile prompts against the checks
 mm eval                            # 30 test briefs end to end on fakes
 mm serve                           # the web page on fakes; prints a link to open
+mm demo                            # seed forced test cases, then serve them
 ```
 
 All of these must pass before you say a change is done. Say what you ran and what it printed.
@@ -53,6 +54,8 @@ All of these must pass before you say a change is done. Say what you ran and wha
 - `src/mm/ports.py`: what a provider must look like. Real adapters go in `src/mm/adapters/`
   (not built yet) and must fit these shapes without changing the pipeline.
 - `src/mm/fakes.py`: stand-ins. Each takes a `plan` of behaviours to play back.
+- `src/mm/demo.py`: the forced test cases. Each one is a real run; nothing is written into the
+  store by hand, and a case that is meant to be refused fails loudly if it stops being refused.
 - `src/mm/web/`: the pages. `app.py` holds every address and the checks on each request. It
   calls the pipeline and never decides on its own whether a song may go forward.
 - `tests/test_pipeline.py` and `tests/test_web.py`: the contract. One promise per test.
