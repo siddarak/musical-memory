@@ -1,0 +1,9 @@
+# Changes to these paths need a review from a person named here.
+# This only takes effect once main is a protected branch that requires code owner review.
+
+/src/mm/safety/     @siddarak
+/src/mm/pipeline.py @siddarak
+/evals/datasets/    @siddarak
+/.github/           @siddarak
+/.claude/           @siddarak
+/CLAUDE.md          @siddarak
