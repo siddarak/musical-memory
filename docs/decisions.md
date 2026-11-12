@@ -93,3 +93,32 @@ asks before pushes, installs and edits to safety files, datasets, CI and setting
 Why: these rules stop the ordinary mistake. They are not a security boundary: a command can be
 written another way. The real protection is that no production key or database is ever
 reachable from a machine where an agent runs.
+
+## 11. Pages without scripts
+
+**Decided.** The web page is server-rendered HTML and plain forms. No page carries a script,
+and nothing is loaded from another site: the font and the stylesheet are served by the app.
+
+Why: the audience is families, so nothing about them should reach a third party, and "no
+scripts" is a promise a content security policy can enforce and a test can check. A waiting
+page reloads itself with a plain refresh. The cost is a less lively page, which is fine for a
+study prototype. The plan had proposed HTMX for partial page updates. It was not needed.
+
+## 12. A participant code in the address is the key
+
+**Decided for the study.** A family gets a link that contains a long random code. There are no
+accounts or passwords until the M6 version.
+
+Why: nothing to sign up for during a study, and no email addresses to store. The cost is that
+the link is a password. So the pages send `Referrer-Policy: no-referrer`, the server writes no
+access log, links are not printed on a hosted service, and every "not found" looks the same
+whether the code, the household or the song was wrong.
+
+## 13. The form checks a brief before a song exists
+
+**Decided.** The web page runs the same input rules and word lists as the pipeline and shows
+problems on the form. A song is only created for a brief that passes. The pipeline still
+screens every brief itself.
+
+Why: a parent can fix a mistake in place, refused briefs do not pile up as songs, and the
+pipeline stays the one place that decides.

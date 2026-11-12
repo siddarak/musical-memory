@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+{% if refresh %}
+<meta http-equiv="refresh" content="{{ refresh }}">
+{% endif %}
+<title>{{ title }} | Musical Memory</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="{{ home_url or '/' }}">Musical Memory</a>
+  <span class="tag">Study prototype</span>
+</header>
+<main>
+{% if step %}
+<p class="where">
+  <span class="dots" aria-hidden="true">{% for n in range(1, 5) %}<span class="dot{% if n <= step %} on{% endif %}"></span>{% endfor %}</span>
+  Step {{ step }} of 4: {{ step_name }}
+</p>
+{% endif %}
+{% block main %}{% endblock %}
+</main>
+<footer>
+  <p>The words and music are made with AI. An adult always listens before a child does.</p>
+</footer>
+</body>
+</html>

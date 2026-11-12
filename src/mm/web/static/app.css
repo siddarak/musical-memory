@@ -1,0 +1,438 @@
+/* Musical Memory: one stylesheet, no scripts.
+
+   The song sheet is the one decorated thing on any page. Its yellow beads mark where each step
+   of the routine is sung, so a parent can see at a glance that every step made it into the
+   song. Everything else stays quiet: navy ink on cool white, one column, large targets. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("/static/fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("/static/fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --ink: #1b2a49;   /* night sky: text, links, the main button */
+  --paper: #f6f8fc; /* the page */
+  --sheet: #ffffff; /* the song sheet and the boxes you type in */
+  --rule: #d3dae8;  /* thin lines */
+  --quiet: #4d5b7a; /* hints */
+  --lamp: #f5c84b;  /* nightlight yellow: step beads and the waiting dots, nothing else */
+  --plum: #8a2846;  /* something to fix */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 112.5%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.top,
+main,
+footer {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tag,
+.hint,
+footer {
+  color: var(--quiet);
+  font-size: 0.833rem;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Type: a minor-third scale from an 18px base. */
+
+h1 {
+  font-size: 1.728rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 1.1rem 0 0.4rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2.4rem 0 0.4rem;
+}
+
+.lead {
+  font-size: 1.2rem;
+  line-height: 1.4;
+  margin: 0 0 1.2rem;
+}
+
+.hint {
+  margin: 0.15rem 0 0.45rem;
+}
+
+.keep {
+  margin-top: 2.4rem;
+}
+
+/* Where you are in the four steps. */
+
+.where {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1.2rem 0 0;
+  color: var(--quiet);
+  font-size: 0.833rem;
+}
+
+.dots {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--quiet);
+}
+
+.dot.on {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* The song sheet. On a phone the type is a little smaller so that a sung line stays on one
+   printed line. A line that still wraps steps in, so it is never mistaken for a new line. */
+
+.sheet {
+  position: relative;
+  margin: 1.2rem 0;
+  padding: 1rem 0.75rem 1rem 0;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  line-height: 1.6;
+}
+
+.sheet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.4rem;
+  width: 1px;
+  background: var(--rule);
+}
+
+.verse {
+  margin: 0 0 1.1em;
+}
+
+.verse:last-child {
+  margin-bottom: 0;
+}
+
+.line {
+  display: block;
+  position: relative;
+  padding-left: 3.9rem;
+  text-indent: -0.9rem;
+}
+
+.bead {
+  position: absolute;
+  left: 0.45rem;
+  top: 0.05em;
+  text-indent: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--lamp);
+  font-size: 0.833rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (min-width: 30rem) {
+  .sheet {
+    padding-right: 1rem;
+    font-size: 1.2rem;
+  }
+
+  .sheet::before {
+    left: 2.9rem;
+  }
+
+  .line {
+    padding-left: 4.6rem;
+  }
+
+  .bead {
+    left: 0.7rem;
+    top: 0.16em;
+  }
+}
+
+/* Forms. */
+
+.name,
+legend {
+  display: block;
+  padding: 0;
+  font-weight: 700;
+}
+
+.name {
+  margin-top: 1.5rem;
+}
+
+.name + input {
+  margin-top: 0.35rem;
+}
+
+fieldset {
+  border: 0;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  min-width: 0;
+}
+
+input:not([type="radio"]):not([type="checkbox"]) {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--quiet);
+  border-radius: 0.4rem;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  width: 1.3rem;
+  height: 1.3rem;
+  margin: 0;
+  accent-color: var(--ink);
+  flex: none;
+}
+
+.steps-in {
+  margin: 0;
+  padding-left: 1.6rem;
+}
+
+.steps-in li {
+  padding-left: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.steps-in li::marker {
+  font-weight: 700;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.9rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.edit input {
+  margin-bottom: 0.4rem;
+}
+
+.edit fieldset {
+  margin: 0 0 1rem;
+}
+
+button {
+  display: block;
+  width: 100%;
+  min-height: 3.2rem;
+  margin-top: 1rem;
+  padding: 0.4rem 1rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.plain {
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.more {
+  margin: 1.2rem 0 0;
+}
+
+/* Things to fix, and other notes. */
+
+.problem {
+  margin: 1.2rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--plum);
+  background: var(--sheet);
+  color: var(--plum);
+}
+
+.problem p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.problem ul,
+.reasons {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.reasons {
+  font-size: 1.2rem;
+}
+
+.notice {
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--ink);
+  background: var(--sheet);
+}
+
+.songs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.songs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.songs span {
+  color: var(--quiet);
+  font-size: 0.833rem;
+  text-align: right;
+}
+
+audio {
+  display: block;
+  width: 100%;
+  margin: 1.2rem 0;
+}
+
+/* Waiting: three beads that swell in turn, like notes. */
+
+.working {
+  display: flex;
+  gap: 0.7rem;
+  margin: 2.4rem 0;
+}
+
+.working span {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--lamp);
+  animation: hum 1.2s ease-in-out infinite;
+}
+
+.working span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.working span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes hum {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working span {
+    animation: none;
+  }
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 0.8rem;
+  padding-bottom: 2rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* For screen readers only. */
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

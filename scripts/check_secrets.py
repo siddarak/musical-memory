@@ -31,7 +31,7 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 
 # In an env file, a secret-looking name must have an empty value.
 _ENV_LINE = re.compile(
-    r"^\s*([A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|DATABASE_URL)[A-Z0-9_]*)=(.+)$"
+    r"^\s*([A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|CODES|DATABASE_URL)[A-Z0-9_]*)=(.+)$"
 )
 _SKIP_DIRS = {
     ".git", ".venv", "venv", "node_modules", "out", "build", "dist",

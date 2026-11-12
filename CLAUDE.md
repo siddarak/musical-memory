@@ -24,6 +24,10 @@ different tool or design.
    file. These need a person's review. The permission settings will prompt you.
 8. **Production is off limits.** No production database, keys or deploys. Staging only, and
    read-only unless told otherwise.
+9. **No scripts on any page and nothing from another site.** No analytics, no hosted fonts, no
+   embeds. The content security policy forbids scripts; do not loosen it.
+10. **A participant code is a password.** Never log an address, print a link on a hosted
+    service, or put what a parent typed into the event log.
 
 ## Commands
 
@@ -36,6 +40,7 @@ mypy                               # types, strict
 python scripts/check_secrets.py    # before every commit
 mm redteam                         # hostile prompts against the checks
 mm eval                            # 30 test briefs end to end on fakes
+mm serve                           # the web page on fakes; prints a link to open
 ```
 
 All of these must pass before you say a change is done. Say what you ran and what it printed.
@@ -48,7 +53,9 @@ All of these must pass before you say a change is done. Say what you ran and wha
 - `src/mm/ports.py`: what a provider must look like. Real adapters go in `src/mm/adapters/`
   (not built yet) and must fit these shapes without changing the pipeline.
 - `src/mm/fakes.py`: stand-ins. Each takes a `plan` of behaviours to play back.
-- `tests/test_pipeline.py`: the contract. One promise per test.
+- `src/mm/web/`: the pages. `app.py` holds every address and the checks on each request. It
+  calls the pipeline and never decides on its own whether a song may go forward.
+- `tests/test_pipeline.py` and `tests/test_web.py`: the contract. One promise per test.
 
 ## How to work
 

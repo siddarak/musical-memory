@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -173,6 +174,55 @@ def _eval(args: argparse.Namespace) -> int:
     return 1 if refused or stuck else 0
 
 
+def build_site(data: Path, codes: list[str]) -> Any:
+    """The web app on fake providers, saving songs and the event log under `data`."""
+    from mm.web import create_app
+    from mm.web.access import Allowlist
+    from mm.web.events import JsonlEvents
+    from mm.web.runner import ThreadRunner
+
+    pipeline = _fake_pipeline(JsonDirStore(data), EnvControls())
+    return create_app(
+        pipeline=pipeline,
+        participants=Allowlist(codes),
+        events=JsonlEvents(data / "events.jsonl"),
+        runner=ThreadRunner(pipeline),
+    )
+
+
+def _serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from mm.web.access import new_code
+    except ImportError:
+        print('The web page needs extra packages. Install them with: pip install -e ".[web]"')
+        return 2
+    from_env = os.environ.get("PARTICIPANT_CODES", "")
+    codes = [code.strip() for code in [*args.code, *from_env.split(",")] if code.strip()]
+    if codes:
+        # Links are not printed here: on a hosted service this output ends up in its logs.
+        print(f"{len(codes)} participant code(s) loaded.")
+    else:
+        codes = [new_code()]
+        print("No participant codes were given, so here is one for this run only:")
+        print(f"  http://{args.host}:{args.port}/h/{codes[0]}")
+    app = build_site(args.data, codes)
+    print(FAKE_NOTE + " The audio is a test tone.")
+    # The access log is off because every address contains a participant code.
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning", access_log=False)
+    return 0
+
+
+def _codes(args: argparse.Namespace) -> int:
+    from mm.web.access import new_code
+
+    for _ in range(args.count):
+        code = new_code()
+        print(f"{args.base_url.rstrip('/')}/h/{code}" if args.base_url else code)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="mm", description="Musical Memory pipeline tools. Fake providers only: free, offline."
@@ -201,6 +251,18 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--data", type=Path, default=GOLDEN)
     evaluate.add_argument("--budget", type=float, default=10.0, help="pretend dollars for the run")
     evaluate.set_defaults(run=_eval)
+
+    serve = commands.add_parser("serve", help="run the web page for parents on this machine")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--data", type=Path, default=Path("data"), help="where songs are saved")
+    serve.add_argument("--code", action="append", default=[], help="a participant code to accept")
+    serve.set_defaults(run=_serve)
+
+    codes = commands.add_parser("codes", help="make new participant codes")
+    codes.add_argument("--count", type=int, default=1)
+    codes.add_argument("--base-url", default="", help="print whole links for this site instead")
+    codes.set_defaults(run=_codes)
 
     args = parser.parse_args(argv)
     run: Callable[[argparse.Namespace], int] = args.run

@@ -40,6 +40,11 @@ def _counted(songs: list[Song], household_id: str, start: datetime) -> int:
     )
 
 
+def _newest_first(songs: list[Song], household_id: str) -> list[Song]:
+    mine = [song for song in songs if song.household_id == household_id]
+    return sorted(mine, key=lambda song: song.created_at, reverse=True)
+
+
 def _spent(songs: list[Song], start: datetime) -> float:
     return sum(
         attempt.cost_usd
@@ -59,6 +64,10 @@ class InMemoryStore:
 
     def get(self, song_id: str) -> Song:
         return self._songs[song_id].model_copy(deep=True)
+
+    def songs_for_household(self, household_id: str) -> list[Song]:
+        copies = [song.model_copy(deep=True) for song in self._songs.values()]
+        return _newest_first(copies, household_id)
 
     def songs_counted_since(self, household_id: str, start: datetime) -> int:
         return _counted(list(self._songs.values()), household_id, start)
@@ -102,6 +111,9 @@ class JsonDirStore:
             return Song.model_validate_json(self._song_file(song_id).read_text(encoding="utf-8"))
         except FileNotFoundError:
             raise KeyError(song_id) from None
+
+    def songs_for_household(self, household_id: str) -> list[Song]:
+        return _newest_first(self._all(), household_id)
 
     def songs_counted_since(self, household_id: str, start: datetime) -> int:
         return _counted(self._all(), household_id, start)

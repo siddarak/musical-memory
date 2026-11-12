@@ -16,6 +16,7 @@ dist/
 
 # Local runs: generated songs and eval output stay out of git
 out/
+data/
 evals/results/
 *.wav
 *.mp3
