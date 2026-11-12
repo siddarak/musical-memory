@@ -149,3 +149,15 @@ neither opens the other, and the team view never serves audio.
 The figures on its pages are not retyped from the documentation. The step counts come from the
 pipeline's own statuses, the word-list sizes from the lists, and the hostile-prompt results from
 the dataset, each checked by a test, so the page cannot quietly drift from what the code does.
+
+## 16. Forced test cases, run for real
+
+**Decided.** `mm demo` seeds one case for every state a reviewer should see, by running each
+one through the pipeline rather than writing rows into the store.
+
+Why: a prototype that opens empty shows nothing, and a prototype seeded with hand-written rows
+proves nothing. Running the cases for real means the demo is also a test: if a check stops
+working, the case that depended on it changes or fails, and the team view shows it.
+
+What it costs: the cases have to be kept in step with the pipeline, and the seeding needs the
+daily caps lifted for itself. Both are stated where they happen and covered by tests.

@@ -16,10 +16,19 @@ cd musical-memory
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-mm serve
+mm demo
 ```
 
-`mm serve` prints two links:
+`mm demo` fills the service with eight forced test cases and then starts it, so you can see the
+whole product on the first click instead of an empty page. Every one of those cases is a real
+run through the real eight steps: a finished song, one waiting for a parent to check the words,
+one waiting for an adult to listen, one where the parent's first edit was refused and the second
+accepted, one that needed a second music try, one that fell back to the words a person wrote,
+and one brief the checks refused outright.
+
+Use `mm serve` instead to start empty and make your own.
+
+Either command prints two links:
 
 - **The parent link.** The whole journey: describe a routine, check the words, listen, play.
 - **The team link.** Every song, every step it took, what it cost, and the thinking behind the
@@ -55,11 +64,13 @@ mm screen examples/bedtime.json      # check a brief without making anything
 mm redteam                           # run the hostile prompts against the checks
 mm eval                              # run the 30 test briefs end to end
 mm codes --count 3                   # make participant codes for a study
-pytest                               # about 345 tests, a few seconds
+mm serve                             # start empty, make your own songs
+pytest                               # about 365 tests, a few seconds
 ```
 
-Songs and the event log are saved under `data/` for `mm serve` and `out/` for `mm generate`.
-Git ignores both.
+Songs and the event log are saved under `data/` for `mm serve`, `demo-data/` for `mm demo` and
+`out/` for `mm generate`. Git ignores all three. Running `mm demo` again starts from a clean
+folder unless you pass `--keep`.
 
 ## How it is built
 
@@ -76,6 +87,7 @@ src/mm/
   store.py         where songs are kept (memory, or a folder of JSON files)
   controls.py      the kill switch
   cli.py           the mm command
+  demo.py          the forced test cases behind mm demo
   web/             the pages: app.py holds every address, and asks the pipeline
 evals/datasets/    30 test briefs, 37 hostile prompts
 tests/             the promises this service makes, one test each

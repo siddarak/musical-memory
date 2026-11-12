@@ -166,6 +166,21 @@ Every song carries a list of attempts: each step, the provider and model, when i
 long it took, what it cost, how it ended, and a short detail. This list is the audit trail and
 the source for the study metrics (paid tries per usable song, time to a playable song).
 
+## The forced test cases
+
+`mm demo` seeds the service with one case for each thing a reviewer should be able to see, then
+serves them. The cases live in `mm/demo.py`.
+
+Every case runs through the pipeline exactly as a parent's would. Nothing is written into the
+store by hand, no check is skipped, and a case that needs something to go wrong makes it go
+wrong honestly, by telling a fake provider to misbehave. A case whose edit is meant to be
+refused raises an error if the checks ever stop refusing it, so a loosened rule cannot pass
+unnoticed.
+
+The seeding lifts the per-household daily cap and the daily budget for itself only, because a
+demo wants more songs on screen than one day allows. The running service still enforces whatever
+limits it was given, and the seeded songs count against the day like any other.
+
 ## Known gaps
 
 Stated plainly so nobody assumes more than exists.
