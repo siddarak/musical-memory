@@ -1,0 +1,48 @@
+/* The few rules this browser copy needs on top of the service's own stylesheet: the notice at
+   the top, the Parent / Team view switch that stands in for two separate links, and the label
+   on the stand-in audio. */
+
+.banner {
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.833rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.banner a {
+  color: #ffffff;
+}
+
+.modes {
+  display: flex;
+  gap: 1.2rem;
+  font-size: 0.95rem;
+}
+
+.modes a {
+  text-decoration: none;
+  color: var(--quiet);
+  padding-bottom: 2px;
+  border-bottom: 3px solid transparent;
+}
+
+.modes a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--ink);
+}
+
+.stand-in {
+  margin-top: -0.8rem;
+}
+
+footer .small {
+  margin-top: 0.6rem;
+  max-width: 46rem;
+}
+
+/* The service puts each household behind its own link, so it has no such switch and no banner.
+   Everything below this line exists only because one page has to stand in for both. */
