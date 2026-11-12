@@ -1,0 +1,21 @@
+# Secrets never go in git. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+
+# Local runs: generated songs and eval output stay out of git
+out/
+evals/results/
+*.wav
+*.mp3
