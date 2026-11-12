@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block main %}
+<h1>What should the song be about?</h1>
+<p class="lead">Name a routine and its steps. We write a short song, you check the words, then you listen before your child does.</p>
+
+{% if problems %}
+<div class="problem" role="alert">
+  <p>Please change this and try again:</p>
+  <ul>
+    {% for problem in problems %}
+    <li>{{ problem }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if left > 0 %}
+<form method="post" action="{{ action }}">
+  <label class="name" for="routine">Routine</label>
+  <p class="hint" id="routine-hint">For example bedtime, brushing teeth or leaving the house.</p>
+  <input id="routine" name="routine" value="{{ form.routine }}" maxlength="40" required autocomplete="off" aria-describedby="routine-hint">
+
+  <fieldset>
+    <legend>Steps, in the order they happen</legend>
+    <p class="hint">Three to five steps, a few words each. Letters only, so write "two books", not "2 books".</p>
+    <ol class="steps-in">
+      {% for value in form.steps %}
+      <li>
+        <label class="sr" for="step-{{ loop.index }}">Step {{ loop.index }}</label>
+        <input id="step-{{ loop.index }}" name="step" value="{{ value }}" maxlength="40"{% if loop.index <= 3 %} required{% endif %} autocomplete="off">
+      </li>
+      {% endfor %}
+    </ol>
+  </fieldset>
+
+  <fieldset>
+    <legend>How should it sound?</legend>
+    {% for key, label in styles %}
+    <label class="pick"><input type="radio" name="style" value="{{ key }}"{% if form.style == key %} checked{% endif %} required> {{ label }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>How old is your child?</legend>
+    <label class="pick"><input type="radio" name="age_band" value="3-4"{% if form.age_band == "3-4" %} checked{% endif %} required> 3 or 4</label>
+    <label class="pick"><input type="radio" name="age_band" value="5-6"{% if form.age_band == "5-6" %} checked{% endif %} required> 5 or 6</label>
+  </fieldset>
+
+  <label class="name" for="nickname">Name to sing (optional)</label>
+  <p class="hint" id="nickname-hint">One word. Leave it empty and we sing "little one".</p>
+  <input id="nickname" name="nickname" value="{{ form.nickname }}" maxlength="20" autocomplete="off" aria-describedby="nickname-hint">
+
+  <button class="primary" type="submit">Write the words</button>
+  <p class="hint">You can make {{ left }} more {{ "song" if left == 1 else "songs" }} today.</p>
+</form>
+{% else %}
+<p class="notice">You have made all of today's songs. Come back tomorrow to make more.</p>
+{% endif %}
+
+{% if songs %}
+<h2>Your songs</h2>
+<ul class="songs">
+  {% for song in songs %}
+  <li><a href="{{ song.url }}">{{ song.routine }}</a> <span>{{ song.label }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<p class="hint keep">We keep the routine, an age range and the name to sing. We keep nothing else about your child.</p>
+{% endblock %}

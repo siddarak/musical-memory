@@ -54,6 +54,16 @@ def test_the_store_adds_up_spending_and_songs_since_a_moment(store, brief):
     assert store.songs_counted_since("house-a", afternoon) == 0
 
 
+def test_a_households_songs_are_listed_newest_first_and_only_its_own(store, brief):
+    older = _song(brief, "song0001")
+    newer = _song(brief, "song0002")
+    newer.created_at = NOON.replace(hour=15)
+    for song in (older, newer, _song(brief, "song0003", household="house-b")):
+        store.save(song)
+    assert [song.id for song in store.songs_for_household("house-a")] == ["song0002", "song0001"]
+    assert store.songs_for_household("nobody") == []
+
+
 def test_audio_is_kept_per_song_and_never_overwritten(store):
     first = store.put_audio("song0001", b"one", "audio/wav")
     second = store.put_audio("song0001", b"two", "audio/wav")

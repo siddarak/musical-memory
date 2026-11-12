@@ -177,6 +177,10 @@ class Pipeline:
             self.store.save(song)
         return song
 
+    def songs_left_today(self, household_id: str) -> int:
+        used = self.store.songs_counted_since(household_id, day_start(self._now()))
+        return max(0, self.limits.songs_per_household_per_day - used)
+
     def advance(self, song_id: str) -> Song:
         """Run every step that can run without a person, then stop and report.
 

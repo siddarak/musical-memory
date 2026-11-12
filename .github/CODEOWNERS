@@ -3,6 +3,7 @@
 
 /src/mm/safety/     @siddarak
 /src/mm/pipeline.py @siddarak
+/src/mm/web/        @siddarak
 /evals/datasets/    @siddarak
 /.github/           @siddarak
 /.claude/           @siddarak

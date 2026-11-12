@@ -85,6 +85,45 @@ version. Nothing is published without this approval, and it records who gave it.
 In study Card 1 and at M6 the adult is the parent. In Cards 2 and 3 a teammate listens first.
 That choice belongs to the web layer, not the pipeline.
 
+## The web page
+
+Server-rendered pages and plain forms in `mm/web/`. The web layer adds no rules of its own
+about songs. It calls the pipeline, which owns both approvals and every limit.
+
+| Address | What it does |
+| --- | --- |
+| `GET /` | Says this is a private prototype. No form. |
+| `GET /h/{code}` | A household's home: the brief form and its songs. |
+| `POST /h/{code}/songs` | Checks the brief, starts a song, sends the parent to it. |
+| `GET /h/{code}/songs/{id}` | The song's page. What it shows depends on where the song is. |
+| `POST .../words` | Approve the words, save an edit, or ask for a fresh draft. |
+| `POST .../listen` | After listening: yes, no, or no and make the music again. |
+| `POST .../resume` | Try again after a pause. |
+| `GET .../audio` | The audio, once it has passed its checks. Honours byte ranges. |
+| `GET /healthz` | `{"status": "ok"}` and nothing else. |
+
+What the web page promises. Each line has a test.
+
+- A participant code is the only key to a household's songs. An unknown code, a code taken off
+  the list, another household's song and a missing song all get the same "not found" page.
+- Publishing needs the box "I listened to the whole song" ticked, on top of the pipeline's own
+  check that the song is at the listening step.
+- No audio is served before it has passed its checks.
+- A brief with a mistake, or with refused words, is explained on the form and no song is
+  created. The explanation never repeats the refused words.
+- An edit keeps the song's shape: the same number of lines and the same step tags.
+- No page has a script, and nothing loads from another site. Every response carries a content
+  security policy that forbids scripts, `Referrer-Policy: no-referrer` so the code in the
+  address never leaks, and `Cache-Control: no-store` on pages and audio.
+- A form posted from another site is refused. So is a post over 20 KB or of the wrong type,
+  before anything reads it.
+- Everything a page prints is escaped.
+- The event log holds the household code, the song, the event's name, a small detail and the
+  time. Nothing a parent typed, no IP address, no browser name.
+- Slow work runs in the background, one worker per song. A waiting page reloads by itself. If
+  work stopped, for example after a restart, opening the page restarts it up to 3 times; after
+  that the page offers a "Try again" button. A paused page does not reload.
+
 ## Limits
 
 All in `Limits` in `mm/pipeline.py`.
@@ -125,15 +164,18 @@ Stated plainly so nobody assumes more than exists.
 - **Word lists are English only** and short on purpose.
 - **Loudness thresholds are first guesses.** Tune them on real audio.
 - **The audio inspector reads 16-bit WAV only.**
-- **One process only.** The per-song lock lives in memory. The database store must use a row
-  lock before a second process is added.
-- **No retry for a failed song, and no timeout for a stuck one.** Both come with the web slice.
-- **No sign-in, no web page, no hosting.**
+- **One process only.** The per-song lock and the list of songs being worked on live in
+  memory. The database store must use a row lock before a second process is added.
+- **No retry for a failed song.** A parent starts a new one, which uses one of the day's songs.
+- **Not hosted, and no sign-in beyond participant codes.** The page has only been run on a
+  development machine, in Chrome. It has not been tried on an iPhone, where audio is the usual
+  trouble spot.
+- **No limit on how fast one visitor can send requests.**
+- **No private play link for a child yet.** A parent plays the song from their own page.
 
 ## What comes next
 
 1. Real adapters for the writer, judge, music and transcript, behind `mm/ports.py`, with an
    eval run that has its own dollar cap. Needs API keys.
-2. The web slice for study Card 1: participant codes, the guided form, approval pages, an event
-   log.
+2. Hosting: a database store, a container, staging on Railway. Needs accounts.
 3. Private play links and the review queue (Card 2). The nightly log (Card 3).

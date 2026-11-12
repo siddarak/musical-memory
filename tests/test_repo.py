@@ -39,6 +39,7 @@ def test_the_scanner_wants_empty_values_in_env_files():
     assert check_secrets.scan_text(".env.example", "ELEVENLABS_API_KEY=") == []
     assert check_secrets.scan_text(".env.example", "DAILY_BUDGET_USD=5") == []
     assert check_secrets.scan_text(".env.example", "ELEVENLABS_API_KEY=something")
+    assert check_secrets.scan_text(".env.example", "PARTICIPANT_CODES=abc123def456")
 
 
 def test_ordinary_text_is_not_flagged():
