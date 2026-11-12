@@ -147,7 +147,7 @@ class Pipeline:
         self.music = music
         self.transcriber = transcriber
         self.inspector = inspector
-        self.controls = controls
+        self.controls = controls  # the kill switch; the team view reads it to show the state
         self.limits = limits or Limits()
         self._now = clock or (lambda: datetime.now(UTC))
         self._new_id = new_id or (lambda: uuid.uuid4().hex)

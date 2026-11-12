@@ -15,6 +15,11 @@ from mm.text import NAME_FALLBACK, NAME_SLOT
 
 Fields = dict[str, list[str]]
 
+# The four steps a parent sees, in order. The rail at the top of every page names them, and
+# `step` below says which one the song is on. These are the parent's steps, not the pipeline's
+# eight: several pipeline steps happen inside "check the words".
+JOURNEY = ("Describe the routine", "Check the words", "Listen", "Play")
+
 WORKING = frozenset(
     {SongStatus.DRAFT, SongStatus.SCREENED, SongStatus.APPROVED, SongStatus.COMPOSED}
 )

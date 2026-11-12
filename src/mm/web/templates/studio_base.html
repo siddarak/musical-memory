@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+{% if refresh %}
+<meta http-equiv="refresh" content="{{ refresh }}">
+{% endif %}
+<title>{{ title }} | Musical Memory team view</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="studio">
+<header class="top">
+  <a class="brand" href="{{ base }}">Musical Memory</a>
+  <span class="tag">Team view</span>
+</header>
+<nav class="tabs" aria-label="Team view">
+  <a href="{{ base }}"{% if tab == "live" %} aria-current="page"{% endif %}>What happened</a>
+  <a href="{{ base }}/journey"{% if tab == "journey" %} aria-current="page"{% endif %}>How it works</a>
+</nav>
+<main>
+{% block main %}{% endblock %}
+</main>
+<footer>
+  <p>Read-only. Nothing on these pages changes a song.</p>
+</footer>
+</body>
+</html>
