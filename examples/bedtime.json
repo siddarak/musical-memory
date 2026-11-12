@@ -1,0 +1,12 @@
+{
+  "routine": "bedtime",
+  "steps": [
+    "brush teeth",
+    "put on pajamas",
+    "read one book",
+    "lights out"
+  ],
+  "style": "gentle_lullaby",
+  "age_band": "3-4",
+  "nickname": "Mimi"
+}

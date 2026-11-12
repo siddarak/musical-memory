@@ -1,0 +1,211 @@
+"""Command line for the pipeline.
+
+Everything here runs on the fake providers, so it is free, offline and safe to run anywhere.
+The audio it writes is a test tone, not music.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from mm import __version__
+from mm.audio import WavInspector
+from mm.controls import EnvControls, StaticControls
+from mm.domain import SongStatus
+from mm.fakes import FakeJudge, FakeMusic, FakeTranscriber, FakeWriter
+from mm.pipeline import LimitReached, Limits, Pipeline
+from mm.ports import Controls, SongStore
+from mm.safety import rules
+from mm.store import InMemoryStore, JsonDirStore
+
+GOLDEN = Path("evals/datasets/briefs.golden.jsonl")
+REDTEAM = Path("evals/datasets/redteam.jsonl")
+FAKE_NOTE = "Providers: fake. This checks the plumbing, not how good or safe a real song is."
+
+
+def _fake_pipeline(store: SongStore, controls: Controls, limits: Limits | None = None) -> Pipeline:
+    music = FakeMusic()
+    return Pipeline(
+        store=store,
+        writer=FakeWriter(),
+        judge=FakeJudge(),
+        music=music,
+        transcriber=FakeTranscriber(music),
+        inspector=WavInspector(),
+        controls=controls,
+        limits=limits,
+    )
+
+
+def _read_json(path: Path) -> object:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def _generate(args: argparse.Namespace) -> int:
+    brief, findings = rules.screen_raw(_read_json(args.brief))
+    if brief is None:
+        print("This brief cannot be used:")
+        for finding in findings:
+            print(f"  - {finding.detail}: {finding.message}")
+        return 2
+    pipeline = _fake_pipeline(JsonDirStore(args.out), EnvControls())
+    try:
+        song = pipeline.create(brief, args.household)
+    except (LimitReached, ValueError) as err:
+        print(err)
+        return 1
+    song = pipeline.advance(song.id)
+    if song.status is SongStatus.REJECTED:
+        print("We will not make this song:")
+        for reason in song.refusal:
+            print(f"  - {reason}")
+        return 1
+    if song.status is not SongStatus.LYRICS_READY or song.lyrics is None:
+        print(song.blocked or song.failure or f"Stopped at {song.status.value}.")
+        return 1
+
+    print(f"Words (from the {song.lyrics_source}, {song.lyrics.word_count()} words):\n")
+    print(song.lyrics.render(brief.nickname))
+    print()
+    if not args.yes:
+        print("Stopped here: a parent has to approve these words before any music is made.")
+        print("To approve both human steps yourself for a local test, run again with --yes.")
+        return 0
+
+    pipeline.approve_lyrics(song.id, by="local-test")
+    song = pipeline.advance(song.id)
+    if song.status is not SongStatus.AUDIO_CHECKED:
+        print(song.blocked or song.failure or f"Stopped at {song.status.value}.")
+        return 1
+    song = pipeline.adult_approve(song.id, by="local-test")
+    print(f"Published song {song.id} (both human steps approved by you, for a local test).")
+    print(f"  audio: {args.out / str(song.audio_path)} ({song.audio_seconds:.0f} seconds)")
+    print(f"  record: {args.out / 'songs' / (song.id + '.json')}")
+    print(f"  music calls: {song.music_calls}, pretend cost: ${song.spend_usd():.2f}")
+    print(f"  words heard in the audio: {song.transcript_match:.0%}")
+    print(FAKE_NOTE + " The audio is a test tone.")
+    return 0
+
+
+def _screen(args: argparse.Namespace) -> int:
+    _, findings = rules.screen_raw(_read_json(args.brief))
+    if not findings:
+        print("This brief passes the input checks and the word lists.")
+        return 0
+    print("This brief is refused:")
+    for finding in findings:
+        print(f"  - [{finding.code}] {finding.message}")
+    return 1
+
+
+def _redteam(args: argparse.Namespace) -> int:
+    rows = _read_jsonl(args.data)
+    stopped: list[str] = []
+    leaked: list[str] = []
+    waiting: list[str] = []
+    mislabelled: list[str] = []
+    for row in rows:
+        _, findings = rules.screen_raw(row["brief"])
+        if row["layer"] == "judge":
+            (mislabelled if findings else waiting).append(row["id"])
+        else:
+            (stopped if findings else leaked).append(row["id"])
+
+    print(f"Red-team prompts: {len(rows)}")
+    print(f"  stopped by input checks and word lists: {len(stopped)} of {len(stopped + leaked)}")
+    if leaked:
+        print(f"  GOT THROUGH: {', '.join(leaked)}")
+    if mislabelled:
+        print(f"  marked for the judge but stopped earlier (fix the label): {mislabelled}")
+    print(f"  need the model judge, which is not built yet: {len(waiting)} (NOT covered)")
+    return 1 if leaked or mislabelled else 0
+
+
+def _eval(args: argparse.Namespace) -> int:
+    rows = _read_jsonl(args.data)
+    limits = Limits(daily_budget_usd=args.budget)
+    pipeline = _fake_pipeline(InMemoryStore(), StaticControls(), limits)
+    refused: list[str] = []
+    stuck: list[str] = []
+    first_time = fallback = published = music_calls = 0
+    for row in rows:
+        brief, findings = rules.screen_raw(row["brief"])
+        if brief is None or findings:
+            refused.append(row["id"])
+            continue
+        song = pipeline.advance(pipeline.create(brief, f"eval-{row['id']}").id)
+        if song.status is not SongStatus.LYRICS_READY:
+            stuck.append(f"{row['id']} ({song.status.value})")
+            continue
+        first_time += song.lyrics_source == "writer" and song.rewrites == 0
+        fallback += song.lyrics_source == "template"
+        pipeline.approve_lyrics(song.id, by="eval")
+        song = pipeline.advance(song.id)
+        if song.status is not SongStatus.AUDIO_CHECKED:
+            stuck.append(f"{row['id']} ({song.blocked or song.failure or song.status.value})")
+            continue
+        song = pipeline.adult_approve(song.id, by="eval")
+        published += 1
+        music_calls += song.music_calls
+
+    total = len(rows)
+    print(f"Golden briefs: {total}")
+    print(f"  passed the input checks and word lists: {total - len(refused)} of {total}")
+    if refused:
+        print(f"  WRONGLY REFUSED: {', '.join(refused)}")
+    print(f"  words accepted on the first draft: {first_time}")
+    print(f"  fell back to the words a person wrote: {fallback}")
+    print(f"  reached a finished song: {published} of {total}")
+    if stuck:
+        print(f"  DID NOT FINISH: {', '.join(stuck)}")
+    if published:
+        print(f"  music calls per finished song: {music_calls / published:.2f}")
+    print(FAKE_NOTE)
+    return 1 if refused or stuck else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="mm", description="Musical Memory pipeline tools. Fake providers only: free, offline."
+    )
+    parser.add_argument("--version", action="version", version=f"mm {__version__}")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    generate = commands.add_parser("generate", help="run one brief through the whole pipeline")
+    generate.add_argument("brief", type=Path, help="a JSON file with one brief")
+    generate.add_argument("--out", type=Path, default=Path("out"), help="where to save the song")
+    generate.add_argument("--household", default="local-test", help="participant code")
+    generate.add_argument(
+        "--yes", action="store_true", help="approve both human steps yourself (local tests only)"
+    )
+    generate.set_defaults(run=_generate)
+
+    screen = commands.add_parser("screen", help="check one brief without making anything")
+    screen.add_argument("brief", type=Path, help="a JSON file with one brief")
+    screen.set_defaults(run=_screen)
+
+    redteam = commands.add_parser("redteam", help="run the hostile prompts against the checks")
+    redteam.add_argument("--data", type=Path, default=REDTEAM)
+    redteam.set_defaults(run=_redteam)
+
+    evaluate = commands.add_parser("eval", help="run the golden briefs through the pipeline")
+    evaluate.add_argument("--data", type=Path, default=GOLDEN)
+    evaluate.add_argument("--budget", type=float, default=10.0, help="pretend dollars for the run")
+    evaluate.set_defaults(run=_eval)
+
+    args = parser.parse_args(argv)
+    run: Callable[[argparse.Namespace], int] = args.run
+    return run(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

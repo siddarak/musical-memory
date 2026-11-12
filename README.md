@@ -7,11 +7,21 @@ Class prototype for TECH 5900 Product Studio, Team 118.
 
 ## Where things stand
 
-This is the skeleton: project settings, the rules coding agents follow, a secret scanner and CI.
-The song pipeline arrives in the next pull request. Nothing here can spend money or reach the
-network.
+| Piece | State |
+| --- | --- |
+| Song pipeline: 8 fixed steps, two human approvals, spending limits | Built. Runs on fake providers. |
+| Input checks and word lists | Built. |
+| 30 test briefs and 37 hostile prompts | Built. 29 hostile prompts are stopped today. 8 need the model judge. |
+| Real lyrics writer and judge (Claude API) | Not built. |
+| Real music (ElevenLabs) | Not built. |
+| Web page for parents | Not built. |
+| Hosting | Not set up. |
 
-## Set up
+Nothing in this repo can spend money or reach the network yet. The "song" it makes is a
+60 second test tone. That is on purpose: the checks, limits and approvals were built and tested
+first, so the paid parts plug into something that already says no when it should.
+
+## Try it
 
 You need Python 3.11 or newer.
 
@@ -19,6 +29,37 @@ You need Python 3.11 or newer.
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+
+pytest                               # about 280 tests, a few seconds
+mm generate examples/bedtime.json    # writes the words, then stops for a parent
+mm generate examples/bedtime.json --yes   # approve both human steps yourself
+mm screen examples/bedtime.json      # check a brief without making anything
+mm redteam                           # run the hostile prompts against the checks
+mm eval                              # run the 30 test briefs end to end
+```
+
+Songs are saved under `out/`, which git ignores. Each song has a JSON record with every step it
+went through and what each step cost.
+
+## How it fits together
+
+```
+src/mm/
+  domain.py        the data: Brief, Lyrics, Song, and the song's status
+  pipeline.py      the steps, the two human approvals, and every limit
+  safety/rules.py  checks on what a parent types and on finished lyrics
+  safety/wordlists.py
+  templates.py     fallback words a person wrote, for when the writer fails
+  audio.py         checks on finished audio
+  ports.py         the shapes a provider must fit (writer, judge, music, store)
+  fakes.py         free, instant stand-ins for the paid providers
+  store.py         where songs are kept (memory, or a folder of JSON files)
+  controls.py      the kill switch
+  cli.py           the mm command
+evals/datasets/    30 test briefs, 37 hostile prompts
+tests/             the pipeline's promises, one test each
+docs/spec.md       what the pipeline must do (read this before changing it)
+docs/decisions.md  what we chose and why
 ```
 
 ## Rules that do not bend
@@ -29,8 +70,7 @@ pip install -e ".[dev]"
 4. The only things kept about a child are an age band and an optional nickname.
 5. No artist, song, show or character names go to the music provider.
 
-`CLAUDE.md` has the longer version that coding agents follow. `docs/decisions.md` records what
-we chose and why.
+`CLAUDE.md` has the longer version that coding agents follow.
 
 ## Before you commit
 
@@ -41,7 +81,7 @@ python scripts/check_secrets.py
 pytest
 ```
 
-CI runs the same commands on every pull request.
+CI runs the same commands on every pull request, plus `mm redteam` and `mm eval`.
 
 ## Secrets
 

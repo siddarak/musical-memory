@@ -9,6 +9,7 @@
 - [ ] `ruff check .`, `ruff format --check .`, `mypy`
 - [ ] `python scripts/check_secrets.py`
 - [ ] `pytest`
+- [ ] `mm redteam` and `mm eval`
 
 ## Before asking for review
 
