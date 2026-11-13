@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -16,10 +17,12 @@ from typing import Any
 from mm import __version__
 from mm.audio import WavInspector
 from mm.controls import EnvControls, StaticControls
-from mm.domain import SongStatus
+from mm.domain import Brief, SongStatus
+from mm.env import DEFAULT_PATH, load_env
 from mm.fakes import FakeJudge, FakeMusic, FakeTranscriber, FakeWriter
 from mm.pipeline import LimitReached, Limits, Pipeline
 from mm.ports import Controls, SongStore
+from mm.presets import STYLE_PRESETS
 from mm.safety import rules
 from mm.store import InMemoryStore, JsonDirStore
 
@@ -174,14 +177,43 @@ def _eval(args: argparse.Namespace) -> int:
     return 1 if refused or stuck else 0
 
 
-def build_site(data: Path, codes: list[str], team: list[str] | None = None) -> Any:
-    """The web app on fake providers, saving songs and the event log under `data`."""
+def _real_pipeline(store: SongStore, controls: Controls, limits: Limits | None = None) -> Pipeline:
+    """The same pipeline, with a paid music provider in place of the fake one.
+
+    Raises SettingsError if the settings are not in place, rather than quietly serving fakes
+    while a demo audience watches and wonders why the audio is a test tone.
+    """
+    from mm.adapters import SettingsError, build_providers
+
+    music, transcriber = build_providers()
+    if music.name == "fake":
+        raise SettingsError(
+            "real providers were asked for but are not configured. Set MM_REAL_PROVIDERS=yes, "
+            "MM_SPEND_CAP_USD and ELEVENLABS_API_KEY in .env."
+        )
+    return Pipeline(
+        store=store,
+        writer=FakeWriter(),  # the writer and judge are still stand-ins; only music is real
+        judge=FakeJudge(),
+        music=music,
+        transcriber=transcriber,
+        inspector=WavInspector(),
+        controls=controls,
+        limits=limits,
+    )
+
+
+def build_site(
+    data: Path, codes: list[str], team: list[str] | None = None, *, real: bool = False
+) -> Any:
+    """The web app, songs and the event log under `data`. Fakes unless `real` is asked for."""
     from mm.web import create_app
     from mm.web.access import Allowlist
     from mm.web.events import JsonlEvents
     from mm.web.runner import ThreadRunner
 
-    pipeline = _fake_pipeline(JsonDirStore(data), EnvControls())
+    make = _real_pipeline if real else _fake_pipeline
+    pipeline = make(JsonDirStore(data), EnvControls())
     return create_app(
         pipeline=pipeline,
         participants=Allowlist(codes),
@@ -220,10 +252,22 @@ def _serve(args: argparse.Namespace) -> int:
     print(f"  {where}/studio/{team[0]}")
     print()
     print("Each link is a password. Anyone who has one can use it. Stop the server with Ctrl-C.")
-    print(FAKE_NOTE + " The audio is a test tone, not music.")
+    if args.real:
+        print(
+            "REAL MUSIC IS ON. Every song a parent makes costs money, against the cap in "
+            "MM_SPEND_CAP_USD.\n"
+            "An adult still has to listen to each song before a child hears it. That gate "
+            "does not move."
+        )
+    else:
+        print(FAKE_NOTE + " The audio is a test tone, not music.")
     print()
 
-    app = build_site(args.data, codes, team)
+    try:
+        app = build_site(args.data, codes, team, real=args.real)
+    except Exception as err:  # noqa: BLE001 - print the reason rather than a traceback
+        print(f"Cannot start: {err}")
+        return 2
     # The access log is off because every address contains a code.
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning", access_log=False)
     return 0
@@ -283,7 +327,123 @@ def _codes(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _hint(message: str) -> str:
+    """Point at the usual cause, because a failure a reader cannot act on wastes their day."""
+    if "CERTIFICATE_VERIFY" in message or "SSL" in message.upper():
+        version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        return (
+            "\nThat is a certificate problem on this machine, not a problem with the key or\n"
+            "with our code. Python cannot verify the connection. The usual fix on macOS, for\n"
+            "the Python you are running right now:\n"
+            f'       open "/Applications/Python {version}/Install Certificates.command"\n'
+            "  Then run this command again. The virtual environment does not need rebuilding.\n"
+            "\n"
+            "  If that folder does not exist, this does the same job for this window only:\n"
+            "       python -m pip install --upgrade certifi\n"
+            '       export SSL_CERT_FILE=$(python -c "import certifi; print(certifi.where())")\n'
+            "\n"
+            "  If you are on a network that inspects traffic, that breaks certificate checks\n"
+            "  by design. Try another network."
+        )
+    if "Name or service not known" in message or "nodename nor servname" in message:
+        return "\nThat is a DNS failure. This machine cannot look up the address at all."
+    if "timed out" in message.lower() or "TimeoutError" in message:
+        return (
+            "\nThe request timed out. A song takes around a minute to make, so a slow\n"
+            "connection can hit the limit. Try once more before changing anything."
+        )
+    return (
+        "\nNothing was made, so nothing was charged beyond what the cap already recorded.\n"
+        "Send me the line above and I will work out what it means."
+    )
+
+
+def _check_provider(args: argparse.Namespace) -> int:
+    """Make one real call, so the adapter is proved against the live API rather than assumed.
+
+    This is the only command that can spend money, and only with the opt-in, a cap and --yes.
+    `eval`, `demo` and `serve` are wired to the fakes in code and cannot reach this path: one
+    `eval` run is 30 songs, which is more than a month of Starter credits.
+    """
+    from mm.adapters import SettingsError, build_providers
+    from mm.songwriter import write_song
+
+    try:
+        music, transcriber = build_providers()
+    except SettingsError as err:
+        print(f"Not set up for a real call: {err}")
+        return 2
+
+    if music.name == "fake":
+        print(
+            "This would use the fake providers, so it would prove nothing.\n"
+            "\n"
+            "Copy .env.example to .env if you have not already, then in .env:\n"
+            "  put your key after ELEVENLABS_API_KEY=\n"
+            "  uncomment MM_REAL_PROVIDERS=yes\n"
+            "  uncomment MM_SPEND_CAP_USD and name a figure\n"
+            "\n"
+            ".env is read automatically from the folder you run this in, so there is nothing to\n"
+            "export. git ignores it. Never paste the key into a chat, an issue or a commit."
+        )
+        return 2
+
+    brief = Brief(
+        routine="bedtime",
+        steps=["brush teeth", "put on pajamas", "read one book", "lights out"],
+        style=args.style,
+        age_band="3-4",
+        nickname="Mimi",
+    )
+    lyrics = write_song(brief)
+    preset = STYLE_PRESETS[brief.style]
+    estimate = preset.seconds / 60 * 0.15
+
+    print(f"About to make one real call to {music.name} ({music.model}).")
+    print(f"  words:    {len(lyrics.render(brief.nickname).split())} of them, written locally")
+    print(f"  length:   {preset.seconds} seconds, style {preset.label}")
+    print(f"  estimate: about ${estimate:.2f}")
+    if not args.yes:
+        print("\nNothing was sent. Add --yes to actually spend it.")
+        return 0
+
+    try:
+        audio = music.compose(lyrics, brief.nickname, preset)
+    except Exception as err:  # noqa: BLE001 - the point is to report whatever went wrong
+        print(f"\nThe call failed: {err}")
+        print(_hint(str(err)))
+        return 1
+
+    facts = WavInspector().inspect(audio.data, audio.mime)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_bytes(audio.data)
+    print("\nThe call worked.")
+    print(f"  saved:  {args.out} ({len(audio.data):,} bytes, {audio.mime})")
+    print(f"  length: {facts.seconds:.1f} seconds")
+    print(f"  peak:   {facts.peak:.2f}   loudness: {facts.rms_dbfs:.1f} dBFS")
+    print(f"  cost:   ${audio.cost_usd:.3f}")
+
+    if args.transcribe:
+        try:
+            heard = transcriber.transcribe(audio.data, audio.mime)
+        except Exception as err:  # noqa: BLE001
+            print(f"\nThe song was made but the transcriber failed: {err}")
+            return 1
+        print(f"\n  transcriber heard {len(heard.text.split())} words, ${heard.cost_usd:.3f}")
+        print("  Read it yourself and compare it with the words above. A person decides.")
+
+    print("\nListen to the whole file before any child hears it. That gate is not automated.")
+    return 0
+
+
+def main(argv: list[str] | None = None, *, env_file: Path | None = DEFAULT_PATH) -> int:
+    """Run one command.
+
+    `env_file` is read first, so a key in `.env` is picked up without the caller exporting it by
+    hand. Anything already in the environment wins. Tests pass `env_file=None` so that a
+    developer's own `.env` can never configure a test run.
+    """
+    load_env(env_file)
     parser = argparse.ArgumentParser(
         prog="mm", description="Musical Memory pipeline tools. Fake providers only: free, offline."
     )
@@ -320,6 +480,11 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument(
         "--team-code", action="append", default=[], help="a code that opens the team view"
     )
+    serve.add_argument(
+        "--real",
+        action="store_true",
+        help="use the paid music provider (needs the settings in .env; costs money per song)",
+    )
     serve.set_defaults(run=_serve)
 
     demo = commands.add_parser(
@@ -331,6 +496,17 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--team-code", default="", help="a code that opens the team view")
     demo.add_argument("--keep", action="store_true", help="add to what is there, do not wipe it")
     demo.set_defaults(run=_demo)
+
+    check = commands.add_parser(
+        "check-provider", help="make ONE real call to prove the adapter works (costs money)"
+    )
+    check.add_argument("--yes", action="store_true", help="actually spend it; off by default")
+    check.add_argument("--style", default="gentle_lullaby", choices=sorted(STYLE_PRESETS))
+    check.add_argument("--out", type=Path, default=Path("out/provider-check.wav"))
+    check.add_argument(
+        "--transcribe", action="store_true", help="also read the song back (costs a little more)"
+    )
+    check.set_defaults(run=_check_provider)
 
     codes = commands.add_parser("codes", help="make new participant codes")
     codes.add_argument("--count", type=int, default=1)

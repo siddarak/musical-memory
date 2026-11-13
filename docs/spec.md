@@ -160,6 +160,48 @@ continues the next time `advance()` is called.
 Worst case for one song at $0.15 a minute: 3 music calls, about $0.45, plus a few cents of
 writer, judge and transcript calls.
 
+## Providers, and how a real one is turned on
+
+Fakes are the default everywhere, and nothing is one setting away from spending money.
+
+`mm.adapters.build_providers` is the only door between the fakes and a paid API. It hands back
+fakes unless **all three** of these are set, and it refuses to run at all if the first is set
+and the others are not, so a half-configured run stops instead of looking like it worked:
+
+| Setting | What it must be |
+| --- | --- |
+| `MM_REAL_PROVIDERS` | exactly `yes`; `true`, `1` and `y` all leave you on fakes |
+| `MM_SPEND_CAP_USD` | a number above zero and at or below 50; there is no default |
+| `ELEVENLABS_API_KEY` | the key, read from `.env`, which git ignores |
+
+The CLI reads `.env` from the folder it is run in before it does anything else, so a key in
+that file arrives without anyone exporting it. Anything already in the environment wins, so
+`MM_SPEND_CAP_USD=0.50 mm check-provider` beats the file. `load_env` reports the names it set
+and never the values, so a key cannot reach a log or a screen through it. Tests pass
+`env_file=None`, so a developer's own `.env` can never configure a test run.
+
+On top of the pipeline's own `daily_budget_usd`, the adapters share one `SpendCap`. Spend is
+reserved before a call and settled after it, so a call that crashes mid-flight still counts and
+cannot be retried for free.
+
+`eval` and `demo` are wired to the fakes in code and cannot reach a real provider even with all
+three set. This is deliberate: one `eval` run is 30 songs, which is more than a month of
+Starter credits, and `demo` exists to show the journey without a key.
+
+Two commands can spend money, and each needs a second gate on top of the three settings:
+
+- `mm check-provider --yes` makes one call, prints the estimate first, and saves the audio.
+- `mm serve --real` serves the real product. Without `--real` a served page is on fakes even
+  with every setting in place. With `--real` and the settings missing it refuses to start,
+  rather than serving a test tone to a watching audience.
+
+The writer and the judge are still stand-ins in both. Only music and the transcript are real.
+
+The music adapter also screens the prompt for brand and character names immediately before the
+request, after the pipeline has already screened the same text. The provider's terms forbid
+those as input, and this second look exists to catch a future change that puts free text into
+the prompt.
+
 ## The record
 
 Every song carries a list of attempts: each step, the provider and model, when it started, how
@@ -191,10 +233,18 @@ Stated plainly so nobody assumes more than exists.
 - **No model writes the words.** The stand-in writer fits the parent's steps into one of ten
   hand-written song shapes. A different routine or style gives a different song, but results on
   stand-ins say nothing about what a model would write, nor about cost per usable song or speed.
-- **No real music.** The audio is a test tone.
+- **No real music has been made yet.** The audio is a test tone. The ElevenLabs adapter is
+  written and unit tested, but it has never spoken to the live API: the machine it was written
+  on cannot reach that host. `mm check-provider --yes` makes one real call and reports what came
+  back. Until somebody has run that on a machine with a key, treat real music as unproven.
 - **Word lists are English only** and short on purpose.
 - **Loudness thresholds are first guesses.** Tune them on real audio.
-- **The audio inspector reads 16-bit WAV only.**
+- **The audio inspector reads 16-bit WAV only.** This is why the music adapter asks for PCM
+  rather than MP3 and wraps the bytes in a WAV header itself. `pcm_22050` is used because
+  `pcm_44100` needs a Pro plan and we are on Starter.
+- **The adapter assumes the PCM that comes back is two channels.** Unverified. If it is one, the
+  song's length comes out at half and the adapter raises an error naming the length, rather than
+  passing a bad song on. Fix the `channels` setting after the first real call.
 - **One process only.** The per-song lock and the list of songs being worked on live in
   memory. The database store must use a row lock before a second process is added.
 - **No retry for a failed song.** A parent starts a new one, which uses one of the day's songs.
@@ -206,7 +256,7 @@ Stated plainly so nobody assumes more than exists.
 
 ## What comes next
 
-1. Real adapters for the writer, judge, music and transcript, behind `mm/ports.py`, with an
-   eval run that has its own dollar cap. Needs API keys.
+1. Real adapters for the writer and the judge, behind `mm/ports.py`. Needs an Anthropic key.
+   Music and the transcript are done, pending one real call to prove them.
 2. Hosting: a database store, a container, staging on Railway. Needs accounts.
 3. Private play links and the review queue (Card 2). The nightly log (Card 3).

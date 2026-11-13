@@ -73,9 +73,10 @@ added only where they are used.
 
 ## 9. Stack for the hosted service
 
-**Proposed. Waiting for Sid's OK.** Python with FastAPI and server-rendered pages, one
-always-on container per environment on Railway, Supabase for Postgres and private file storage,
-ElevenLabs for music, the Claude API for the writer and judge.
+**Proposed. Waiting for Sid's OK. The music provider is settled in decision 21, and this entry's open question about ElevenLabs' input rules is answered there.** Python
+with FastAPI and server-rendered pages, one always-on container per environment on Railway,
+Supabase for Postgres and private file storage, ElevenLabs for music, the Claude API for the
+writer and judge.
 
 Why this over Next.js on Vercel: a song takes around a minute to make, which suits an always-on
 process better than serverless time limits; the team reads Python; and one small container is
@@ -226,3 +227,199 @@ an action twice. Reintroducing the bug fails all three.
 
 The lesson worth keeping: test the thing in the frame it will actually run in. A page that works
 on a local web server tells you nothing about a page inside someone else's sandbox.
+
+## 20. Lyria 3.5 through the Gemini API for music, not ElevenLabs
+
+**Superseded the same day by decision 21. Kept for what it was weighed on.** This replaces the music half of decision 9. The writer and
+the judge still go through the Claude API.
+
+Why: one call returns a sung song with the words in time, so the pipeline loses a step it would
+otherwise need to join music and a voice. Google's price list shows a full song at $0.08 with no
+free tier, against $0.15 a minute at ElevenLabs, and there is no monthly fee, so a day of the
+$5 cap buys 62 songs instead of 33. On the paid tier Google does not use what we send to
+improve their products; on the free tier it does, and for a page where a parent types something
+about their own child that difference decides it. The paid tier is the only one that carries
+Lyria anyway.
+
+The term we read and accepted: the Gemini API age requirements say a developer must be 18 or
+older, and that the API must not be used as part of a service "directed towards or is likely to
+be accessed by individuals under the age of 18". Sid's reading is that the service is operated
+by a parent from end to end. A parent types the routine, a parent approves the words, and an
+adult listens to the whole song before a child hears any of it. No child signs in, and no screen
+is built for a child. The songs are for children aged 3 to 6 and a child hears the audio, so
+this is a reading and not a certainty. It is recorded here so that a reviewer can disagree with
+it in one place rather than guess at it.
+
+Still to ask the coach: Cornell's rules for a study that involves children. That question is open
+from decision 9 and this does not close it.
+
+Still open, and found while writing this down: ElevenLabs was going to do two jobs, not one. The
+other is the transcriber, which listens to the finished song and reads back what was actually
+sung so the pipeline can compare it with the words the parent approved. Lyria does not do that,
+and its own timed lyrics are not a substitute, because the point of that step is to check the
+audio rather than trust what the provider says it made. So a transcriber still has to be chosen.
+Gemini can transcribe audio, which would keep us to two vendors, but then the same vendor both
+makes the song and marks its own work. A different vendor is the safer shape. Not decided here.
+
+What it costs: nothing in the pipeline. `MusicProvider` in `src/mm/ports.py` already says what an
+adapter has to do, so this is one file in `src/mm/adapters/` either way, and the steps, the
+limits and the two approvals do not move. If the reading above turns out to be wrong, the
+adapter is replaced and nothing else is.
+
+## 21. ElevenLabs for music and for the transcriber, which supersedes decision 20
+
+**Decided by Sid on 13 Nov 2026, the same day as decision 20.** Decision 20 stands as the record
+of what Lyria was weighed on, because the reasoning is worth keeping. This replaces its
+conclusion. Starter plan, $6 a month, bought before this was written.
+
+What changed in the few hours between them: reading ElevenLabs' terms properly, which decision 9
+had left as an open question, and finding they are cleaner for this project in the one way that
+matters most.
+
+The input rule, which is the question decision 9 was waiting on. Section 2.1 of the Eleven Music
+terms says a customer must not submit as input artist names, songwriter names, song titles, album
+titles, publisher names or record label names, and item (g) adds a substantial or distinctive
+portion of any song's lyrics where a reasonable person would judge the prompt to be referencing a
+particular song. Our own original words are nowhere prohibited, and the only duty attached to
+them is the warranty in section 2.2 that we hold the rights to what we submit. So a parent's
+routine, turned into words we wrote, is allowed. Decision 9's open question is closed.
+
+The age rule, which is why this beats Lyria. ElevenLabs requires the account holder to be 18 or
+over and says nothing about who the audience is. There is no counterpart to the Gemini term that
+forbids use in a service directed towards, or likely to be accessed by, anyone under 18. Decision
+20 accepted a reading of that term. This needs no reading at all. For a graded project whose whole
+subject is children aged 3 to 6, paying more to have nothing for a reviewer to question is worth
+it. Our word lists already exist to block exactly the inputs section 2.1 names, so the safety
+layer we built for one provider fits the other unchanged.
+
+It also closes the gap decision 20 opened. ElevenLabs does the transcriber as well, so the step
+that listens to a finished song and reads back what was actually sung has a provider again, and it
+is one key instead of two vendors.
+
+What it costs, and this is the part to watch. Published rates are $0.15 a minute for music and
+$0.22 an hour for Scribe. In the credits the subscription meters, music is about 900 a minute and
+speech to text about 330, so one 60 second song plus the check on it is roughly 1,230 credits
+against the 30,000 a month Starter includes. That is about 24 songs a month, which is far tighter
+than the $5 a day in `Limits` assumes. Whether API calls draw down those credits or bill
+separately as pay as you go is not something we have established, and the sources disagree. We
+will know from what the usage page deducts after the first real call, and the number here is
+provisional until then.
+
+The consequence is immediate and worth naming: `mm eval` runs 30 briefs end to end. Pointed at the
+real provider even once, that single command would spend more than a month of Starter credits. It
+must stay on fakes, which rule 2 already requires and which the adapter must not make easy to
+undo.
+
+## 22. The music adapter asks for PCM, injects its transport, and cannot be reached by `mm eval`
+
+**Decided while building it, 13 Nov 2026.** Four choices worth recording, because each had a
+real alternative.
+
+**PCM rather than MP3.** The music endpoint returns MP3 by default, and `WavInspector` reads
+16-bit WAV only, so the audio check would have failed on every real song. The alternatives were
+to add an MP3 decoder, which means a new dependency or ffmpeg on every machine including Sid's
+laptop, or to teach the inspector a second format, which means editing a file that needs
+review. Asking for `pcm_22050` and wrapping the bytes in a WAV header with the standard
+library's `wave` costs nothing and leaves the inspector untouched. `pcm_44100` would sound
+better but needs a Pro plan; `mp3_44100_192` needs Creator. We are on Starter.
+
+**The transport is injected.** Every test passes a fake callable, so no test can reach the
+network even by mistake, and there is no HTTP mocking library to learn. The default transport
+is a dozen lines of `urllib` and is the only code in the package that opens a socket. The
+alternative, a real HTTP client plus a mocking library, buys nothing here and adds two
+dependencies.
+
+**One shared `SpendCap`, reserved before the call.** The music and transcriber adapters bill to
+the same key, so they share one running total rather than getting a budget each. Spend is
+reserved before the request and settled afterwards, matching what the pipeline already does for
+music calls, so a crash in the HTTP layer still counts. A cap checked after the fact is not a
+cap.
+
+**`eval`, `demo` and `serve` cannot reach a real provider at all**, even with every setting in
+place. They construct fakes directly. (`serve` was wrong and is corrected in decision 24.) One `eval` run is 30 songs end to end, which at roughly
+1,230 credits a song is more than a month of Starter's 30,000. Making that command capable of
+spending money and relying on an environment variable to stop it is a mistake waiting for a
+tired evening. The only command that can spend is `mm check-provider`, which does one call and
+needs `--yes`.
+
+**What is not proved.** This adapter has never spoken to ElevenLabs. The machine it was written
+on cannot reach that host, so everything here is checked against the published API reference
+and against a fake transport, not against a real reply. Two things are most likely to be wrong
+on the first real call: the channel count of the returned PCM, and the exact shape of the
+speech-to-text reply. Both were written to fail loudly. A wrong channel count makes the song
+come out the wrong length, and the adapter raises an error naming the length rather than
+handing on a bad song.
+
+
+## 23. `.env` is read by fifteen lines of our own rather than a dependency
+
+**Decided 13 Nov 2026, after the bug.** Decision 22 shipped an adapter that read its settings
+from the environment, and `.env.example` told a reader to put the key in `.env`. Nothing read
+that file. The key would have sat there and `mm check-provider` would have kept reporting fake
+providers, with no hint why. Sid hit this immediately.
+
+The fix is `mm/env.py`: parse the file, set anything not already set, return the names. The
+alternative was `python-dotenv`, which is a fine library, but decision 8 keeps the dependency
+list short and this is a dull enough job to own. No variable expansion, no shell, no includes,
+because a file holding a key is not a place to want surprises.
+
+Two properties it holds, both tested by breaking them: a name already in the environment wins,
+so a value set for one command cannot be silently replaced; and the loader returns names only,
+never values, so a key cannot reach a screen or a log through it.
+
+Copying `.env.example` leaves you on fakes. The two settings that turn real providers on are
+in the file but commented out, so the act of enabling them is deliberate.
+
+The lesson, which is the same one as decision 19: the instructions were tested by reading them,
+not by following them. A step that says "put it in a file" is not done until something reads
+the file.
+
+
+## 24. `mm serve --real`: two gates, because serve is the product
+
+**Decided 13 Nov 2026, correcting decision 22.** Decision 22 made `serve` incapable of real
+music along with `eval` and `demo`. That was right for the other two and wrong for `serve`,
+which is the actual product and the thing being demonstrated on Dec 4. A demo of real music
+that cannot play real music is not a demo.
+
+`serve` now takes `--real`. Both the flag and the three settings are needed, so the environment
+alone cannot make a served page spend money and the flag alone cannot either. Two gates rather
+than one because this is the command that runs unattended in front of people, where a parent
+clicking a button is what spends the money rather than a developer typing a command.
+
+With `--real` and the settings missing it refuses to start. The alternative, falling back to
+fakes with a warning, means standing in front of an audience wondering why the audio is a test
+tone. Refusing is louder and kinder.
+
+`eval` and `demo` keep the decision 22 treatment and cannot reach a paid provider at all.
+
+The writer and the judge are still stand-ins even with `--real`, and the startup message says
+only that real music is on. Nothing here should let someone believe a model wrote the words.
+
+
+## 25. Find the certificates ourselves rather than asking a reader to
+
+**Decided 13 Nov 2026, after Sid lost fifteen minutes to it.** The adapter's first real call
+failed with `CERTIFICATE_VERIFY_FAILED`. The python.org build of Python on macOS ships without
+its certificate store connected, so every HTTPS call fails until somebody runs
+`Install Certificates.command`. That script then failed too, because it writes into the system
+framework Python and he did not have permission.
+
+None of that is about this project, and all of it stood between a working key and a working
+song. So `trust()` now looks for a store itself, in the order that asks least of the reader:
+`truststore`, which uses the operating system's own store and so needs nothing installed or
+maintained; then `certifi`, the bundled list; then Python's default, which is correct on a
+machine that is already set up. Any failure falls through to the next rather than raising, and
+None means use the default.
+
+Both packages are optional, in a new `real` extra, because they are only needed to call a paid
+provider. On this machine `truststore` wins, which means the trust decision follows whatever
+the operating system already trusts rather than a list we ship and forget to update.
+
+A mutation test caught the version of this that looks most like working code: looking the
+context up and then not passing it to `urlopen`. There is now a test that spies on the call and
+asserts the context arrives.
+
+The pattern across decisions 19, 23 and this one is the same. Each was a step that read
+correctly and did not work when followed: a form that submits, a file that is read, a
+certificate that is found. Setup instructions are code, and untested code does not work.

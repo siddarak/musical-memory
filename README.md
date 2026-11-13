@@ -65,7 +65,7 @@ Each link is a password. Anyone who has one can use it, so treat them that way.
 | The team view: journey, songs, costs, event log, decisions | Works |
 | A different song for a different routine, from hand-written shapes | Works |
 | **Words written by a model** | **Needs an Anthropic API key** |
-| **Real music** | **Needs an ElevenLabs API key** |
+| **Real music** | **Adapter written and unit tested, never yet called for real. Needs a key.** |
 | Hosting | Not set up. One machine, started by hand. |
 
 Without those two keys the service still runs end to end. The words come from ten hand-written
