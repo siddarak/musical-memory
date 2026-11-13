@@ -232,3 +232,45 @@ def test_the_browser_copy_writes_exactly_the_same_songs(tmp_path):
     theirs = _node_songs(tmp_path, cases)
     for case, want, got in zip(cases, ours, theirs, strict=True):
         assert got == want, f"{case['routine']} / {case['style']} differs"
+
+
+# ---- the page has to work inside a sandbox that forbids forms --------------------------------
+
+# The artifact runtime shows this page in a frame whose sandbox does not allow form submission.
+# A submit event never fires there, so a page that waits for one does nothing when a button is
+# pressed, and the whole journey is unreachable. That is a bug a reader of the code cannot see,
+# so these two tests pin the shape of the fix: every action is reachable by a click.
+
+ACTION_BUTTONS = (
+    "start",
+    "save-edit",
+    "approve-words",
+    "redraft",
+    "approve-audio",
+    "retry-audio",
+    "reject-audio",
+)
+
+
+@pytest.mark.parametrize("action", ACTION_BUTTONS)
+def test_every_button_that_does_something_carries_its_own_action(action):
+    assert f'data-act="{action}"' in (SITE / "app.js").read_text()
+
+
+def test_the_two_submit_buttons_do_not_rely_on_the_form():
+    script = (SITE / "app.js").read_text()
+    for label in ("Write the words", "Save my changes and make the song"):
+        line = next(ln for ln in script.splitlines() if label in ln and "<button" in ln)
+        assert "data-act=" in line, f'"{label}" would do nothing where forms are not allowed'
+
+    # Starting a song is handled before the "is a song open?" guard, because starting one is
+    # what you do when there is not.
+    click = script[script.index('document.addEventListener("click"') :]
+    assert click.index('dataset.act === "start"') < click.index("if (!song) return;")
+
+
+def test_a_click_cannot_also_fire_the_form_and_run_an_action_twice():
+    script = (SITE / "app.js").read_text()
+    click = script[script.index('document.addEventListener("click"') :]
+    head = click[: click.index("if (target.dataset.view)")]
+    assert "event.preventDefault();" in head, "a click must stop the form before acting"

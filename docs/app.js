@@ -911,7 +911,7 @@ ${problemsHtml()}
         <input id="nickname" name="nickname" value="${esc(form.nickname)}" maxlength="20" autocomplete="off">
       </div>
     </div>
-    <button class="primary" type="submit">Write the words</button>
+    <button class="primary" type="submit" data-act="start">Write the words</button>
     <p class="hint">You can make ${left} more ${left === 1 ? "song" : "songs"} today.</p>
   </form>`
       : `<p class="notice">You have made all of today's songs. Come back tomorrow to make more.</p>`
@@ -996,7 +996,7 @@ ${problemsHtml()}
 <div class="split">
   <div class="col-main">
     <form id="edit-form" class="edit">${boxes}
-      <button class="primary" type="submit">Save my changes and make the song</button>
+      <button class="primary" type="submit" data-act="save-edit">Save my changes and make the song</button>
     </form>
     <p class="more"><a href="#" data-go="words">Leave the words as they were</a></p>
   </div>
@@ -1214,33 +1214,46 @@ function readForm() {
   };
 }
 
+function startFromForm() {
+  const raw = readForm();
+  state.form = { ...raw, steps: raw.steps.concat(["", "", "", "", ""]).slice(0, 5) };
+  startSong(raw);
+}
+
+function saveEdit(song) {
+  const typed = [...app.querySelectorAll('input[name="line"]')].map((input) => input.value);
+  state.typed = typed;
+  const lines = flatLines(song.lyrics);
+  if (typed.length !== lines.length) return;
+  let n = 0;
+  const edited = {
+    title: song.lyrics.title,
+    sections: song.lyrics.sections.map((section) => ({
+      name: section.name,
+      lines: section.lines.map((line) => ({
+        text: typed[n++].split(/\s+/).filter(Boolean).join(" "),
+        step: line.step,
+      })),
+    })),
+  };
+  if (edited.sections.some((s) => s.lines.some((l) => !l.text))) {
+    state.problems = ["Each line needs some words."];
+    return render();
+  }
+  const same = JSON.stringify(edited) === JSON.stringify(song.lyrics);
+  approveWords(song, same ? null : edited);
+}
+
+/* This page can run inside a frame whose sandbox does not allow form submission, and there a
+   submit event never fires at all, so a page that waited for one did nothing when the button
+   was pressed. Every action is driven by the click handler below instead, which works in any
+   sandbox. This listener is only for the Enter key where forms are allowed; a click cannot
+   reach it, because the click handler calls preventDefault before the form would submit. */
 document.addEventListener("submit", (event) => {
   event.preventDefault();
   const song = current();
-  if (event.target.id === "brief-form") {
-    const raw = readForm();
-    state.form = { ...raw, steps: raw.steps.concat(["", "", "", "", ""]).slice(0, 5) };
-    startSong(raw);
-  } else if (event.target.id === "edit-form" && song) {
-    const typed = [...app.querySelectorAll('input[name="line"]')].map((input) => input.value);
-    state.typed = typed;
-    const lines = flatLines(song.lyrics);
-    if (typed.length !== lines.length) return;
-    let n = 0;
-    const edited = {
-      title: song.lyrics.title,
-      sections: song.lyrics.sections.map((section) => ({
-        name: section.name,
-        lines: section.lines.map((line) => ({ text: typed[n++].split(/\s+/).filter(Boolean).join(" "), step: line.step })),
-      })),
-    };
-    if (edited.sections.some((s) => s.lines.some((l) => !l.text))) {
-      state.problems = ["Each line needs some words."];
-      return render();
-    }
-    const same = JSON.stringify(edited) === JSON.stringify(song.lyrics);
-    approveWords(song, same ? null : edited);
-  }
+  if (event.target.id === "brief-form") startFromForm();
+  else if (event.target.id === "edit-form" && song) saveEdit(song);
 });
 
 document.addEventListener("click", (event) => {
@@ -1271,7 +1284,9 @@ document.addEventListener("click", (event) => {
     state.problems = [];
     return render();
   }
+  if (target.dataset.act === "start") return startFromForm();
   if (!song) return;
+  if (target.dataset.act === "save-edit") return saveEdit(song);
   if (target.dataset.go === "edit") {
     state.editing = true;
     state.typed = null;

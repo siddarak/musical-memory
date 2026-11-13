@@ -207,3 +207,22 @@ a nine word line and two had a four word tail; the sweep caught all four.
 
 What it is not: a model. The words are ours, not written for this family, and the gaps list on
 the team view says so.
+
+## 19. The browser copy is driven by clicks, not by form submission
+
+**Decided, after it broke.** Every action on the page hangs off a click handler. The submit
+handler remains, but only so the Enter key still works where forms are allowed.
+
+Why: the page is shown inside a frame whose sandbox does not permit form submission. There a
+submit event never fires, so the first version did nothing at all when "Write the words" was
+pressed. The form looked fine, the console was clean, and the whole journey was unreachable.
+It worked everywhere I had tested it, because serving the page directly is not the same as
+serving it in a frame.
+
+What it costs: two handlers instead of one, and a rule to keep. Three tests pin it: every
+button that does something carries its own action, the two submit buttons are checked by name,
+and the click handler must call preventDefault so a click can never also fire the form and run
+an action twice. Reintroducing the bug fails all three.
+
+The lesson worth keeping: test the thing in the frame it will actually run in. A page that works
+on a local web server tells you nothing about a page inside someone else's sandbox.
