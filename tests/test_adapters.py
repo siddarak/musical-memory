@@ -360,7 +360,7 @@ def test_eval_stays_on_fakes_even_when_real_providers_are_fully_configured(
 
     for name, value in FULLY_CONFIGURED.items():
         monkeypatch.setenv(name, value)
-    assert main(["eval"]) == 0
+    assert main(["eval"], env_file=None) == 0
     assert "Providers: fake" in capsys.readouterr().out
 
 
@@ -371,7 +371,7 @@ def test_check_provider_sends_nothing_without_an_explicit_yes(
 
     for name, value in FULLY_CONFIGURED.items():
         monkeypatch.setenv(name, value)
-    assert main(["check-provider"]) == 0
+    assert main(["check-provider"], env_file=None) == 0
     out = capsys.readouterr().out
     assert "Nothing was sent" in out
     assert "$0.15" in out, "the estimate must be shown before anything is spent"
@@ -384,7 +384,7 @@ def test_check_provider_refuses_when_it_would_only_use_fakes(
 
     for name in FULLY_CONFIGURED:
         monkeypatch.delenv(name, raising=False)
-    assert main(["check-provider", "--yes"]) == 2
+    assert main(["check-provider", "--yes"], env_file=None) == 2
     assert "would prove nothing" in capsys.readouterr().out
 
 
@@ -395,5 +395,79 @@ def test_check_provider_never_prints_the_key(
 
     for name, value in FULLY_CONFIGURED.items():
         monkeypatch.setenv(name, value)
-    main(["check-provider"])
+    main(["check-provider"], env_file=None)
     assert "test-key-not-real" not in capsys.readouterr().out
+
+
+# ---- reading .env ---------------------------------------------------------------------------
+
+
+def test_the_env_file_is_what_makes_a_key_in_a_file_actually_arrive(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """The bug this file exists to prevent: a key sitting in .env that nothing ever reads."""
+    from mm.cli import main
+
+    for name in FULLY_CONFIGURED:
+        monkeypatch.delenv(name, raising=False)
+    env = tmp_path / ".env"
+    env.write_text(
+        "# a comment\n"
+        "MM_REAL_PROVIDERS=yes\n"
+        'ELEVENLABS_API_KEY="test-key-not-real"\n'
+        "export MM_SPEND_CAP_USD=1.00\n"
+    )
+    assert main(["check-provider"], env_file=env) == 0
+
+
+def test_a_value_already_in_the_environment_beats_the_file(tmp_path, monkeypatch):
+    from mm.env import load_env
+
+    monkeypatch.setenv("MM_SPEND_CAP_USD", "0.50")
+    env = tmp_path / ".env"
+    env.write_text("MM_SPEND_CAP_USD=9.00\n")
+    load_env(env)
+    import os
+
+    assert os.environ["MM_SPEND_CAP_USD"] == "0.50"
+
+
+def test_loading_reports_names_and_never_values(tmp_path, monkeypatch):
+    from mm.env import load_env
+
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    env = tmp_path / ".env"
+    env.write_text("ELEVENLABS_API_KEY=test-key-not-real\n")
+    assert load_env(env) == ["ELEVENLABS_API_KEY"]
+
+
+def test_a_missing_env_file_is_not_an_error_because_fakes_are_the_default(tmp_path):
+    from mm.env import load_env
+
+    assert load_env(tmp_path / "nothing-here") == []
+    assert load_env(None) == []
+
+
+@pytest.mark.parametrize(
+    "line, expected",
+    [
+        ("A=1", {"A": "1"}),
+        ("  A = 1  ", {"A": "1"}),
+        ("A='quoted'", {"A": "quoted"}),
+        ('A="quoted"', {"A": "quoted"}),
+        ("export A=1", {"A": "1"}),
+        ("# A=1", {}),
+        ("", {}),
+        ("no equals sign", {}),
+        # A bare valid name must be skipped, not turned into an empty value.
+        ("JUSTANAME", {}),
+        ("MM_REAL_PROVIDERS", {}),
+        ("A=has=equals", {"A": "has=equals"}),
+        ("A=", {"A": ""}),
+        ("not a name!=1", {}),
+    ],
+)
+def test_the_parser_skips_what_it_cannot_read_rather_than_guessing(line: str, expected: dict):
+    from mm.env import parse_env
+
+    assert parse_env(line) == expected

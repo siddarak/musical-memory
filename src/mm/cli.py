@@ -17,6 +17,7 @@ from mm import __version__
 from mm.audio import WavInspector
 from mm.controls import EnvControls, StaticControls
 from mm.domain import Brief, SongStatus
+from mm.env import DEFAULT_PATH, load_env
 from mm.fakes import FakeJudge, FakeMusic, FakeTranscriber, FakeWriter
 from mm.pipeline import LimitReached, Limits, Pipeline
 from mm.ports import Controls, SongStore
@@ -303,10 +304,14 @@ def _check_provider(args: argparse.Namespace) -> int:
     if music.name == "fake":
         print(
             "This would use the fake providers, so it would prove nothing.\n"
-            "To make a real call, set these in .env and load it into your shell:\n"
-            "  MM_REAL_PROVIDERS=yes\n"
-            "  MM_SPEND_CAP_USD=1.00\n"
-            "  ELEVENLABS_API_KEY=... (never paste this into a chat, an issue or a commit)"
+            "\n"
+            "Copy .env.example to .env if you have not already, then in .env:\n"
+            "  put your key after ELEVENLABS_API_KEY=\n"
+            "  uncomment MM_REAL_PROVIDERS=yes\n"
+            "  uncomment MM_SPEND_CAP_USD and name a figure\n"
+            "\n"
+            ".env is read automatically from the folder you run this in, so there is nothing to\n"
+            "export. git ignores it. Never paste the key into a chat, an issue or a commit."
         )
         return 2
 
@@ -357,7 +362,14 @@ def _check_provider(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, env_file: Path | None = DEFAULT_PATH) -> int:
+    """Run one command.
+
+    `env_file` is read first, so a key in `.env` is picked up without the caller exporting it by
+    hand. Anything already in the environment wins. Tests pass `env_file=None` so that a
+    developer's own `.env` can never configure a test run.
+    """
+    load_env(env_file)
     parser = argparse.ArgumentParser(
         prog="mm", description="Musical Memory pipeline tools. Fake providers only: free, offline."
     )

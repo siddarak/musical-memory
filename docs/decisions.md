@@ -349,3 +349,27 @@ on the first real call: the channel count of the returned PCM, and the exact sha
 speech-to-text reply. Both were written to fail loudly. A wrong channel count makes the song
 come out the wrong length, and the adapter raises an error naming the length rather than
 handing on a bad song.
+
+
+## 23. `.env` is read by fifteen lines of our own rather than a dependency
+
+**Decided 13 Nov 2026, after the bug.** Decision 22 shipped an adapter that read its settings
+from the environment, and `.env.example` told a reader to put the key in `.env`. Nothing read
+that file. The key would have sat there and `mm check-provider` would have kept reporting fake
+providers, with no hint why. Sid hit this immediately.
+
+The fix is `mm/env.py`: parse the file, set anything not already set, return the names. The
+alternative was `python-dotenv`, which is a fine library, but decision 8 keeps the dependency
+list short and this is a dull enough job to own. No variable expansion, no shell, no includes,
+because a file holding a key is not a place to want surprises.
+
+Two properties it holds, both tested by breaking them: a name already in the environment wins,
+so a value set for one command cannot be silently replaced; and the loader returns names only,
+never values, so a key cannot reach a screen or a log through it.
+
+Copying `.env.example` leaves you on fakes. The two settings that turn real providers on are
+in the file but commented out, so the act of enabling them is deliberate.
+
+The lesson, which is the same one as decision 19: the instructions were tested by reading them,
+not by following them. A step that says "put it in a file" is not done until something reads
+the file.

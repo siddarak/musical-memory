@@ -174,6 +174,12 @@ and the others are not, so a half-configured run stops instead of looking like i
 | `MM_SPEND_CAP_USD` | a number above zero and at or below 50; there is no default |
 | `ELEVENLABS_API_KEY` | the key, read from `.env`, which git ignores |
 
+The CLI reads `.env` from the folder it is run in before it does anything else, so a key in
+that file arrives without anyone exporting it. Anything already in the environment wins, so
+`MM_SPEND_CAP_USD=0.50 mm check-provider` beats the file. `load_env` reports the names it set
+and never the values, so a key cannot reach a log or a screen through it. Tests pass
+`env_file=None`, so a developer's own `.env` can never configure a test run.
+
 On top of the pipeline's own `daily_budget_usd`, the adapters share one `SpendCap`. Spend is
 reserved before a call and settled after it, so a call that crashes mid-flight still counts and
 cannot be retried for free.
