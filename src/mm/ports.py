@@ -1,6 +1,6 @@
 """The edges of the pipeline: everything it needs from the outside world.
 
-The pipeline only knows these shapes. Real providers (Lyria, Claude, Postgres) and the
+The pipeline only knows these shapes. Real providers (ElevenLabs, Claude, Postgres) and the
 fakes used in tests both fit them, so swapping one for another never touches pipeline code.
 """
 

@@ -73,7 +73,7 @@ added only where they are used.
 
 ## 9. Stack for the hosted service
 
-**Proposed. Waiting for Sid's OK. The music provider is now settled in decision 20.** Python
+**Proposed. Waiting for Sid's OK. The music provider is settled in decision 21, and this entry's open question about ElevenLabs' input rules is answered there.** Python
 with FastAPI and server-rendered pages, one always-on container per environment on Railway,
 Supabase for Postgres and private file storage, ElevenLabs for music, the Claude API for the
 writer and judge.
@@ -230,7 +230,7 @@ on a local web server tells you nothing about a page inside someone else's sandb
 
 ## 20. Lyria 3.5 through the Gemini API for music, not ElevenLabs
 
-**Decided by Sid on 13 Nov 2026.** This replaces the music half of decision 9. The writer and
+**Superseded the same day by decision 21. Kept for what it was weighed on.** This replaces the music half of decision 9. The writer and
 the judge still go through the Claude API.
 
 Why: one call returns a sung song with the words in time, so the pipeline loses a step it would
@@ -265,3 +265,47 @@ What it costs: nothing in the pipeline. `MusicProvider` in `src/mm/ports.py` alr
 adapter has to do, so this is one file in `src/mm/adapters/` either way, and the steps, the
 limits and the two approvals do not move. If the reading above turns out to be wrong, the
 adapter is replaced and nothing else is.
+
+## 21. ElevenLabs for music and for the transcriber, which supersedes decision 20
+
+**Decided by Sid on 13 Nov 2026, the same day as decision 20.** Decision 20 stands as the record
+of what Lyria was weighed on, because the reasoning is worth keeping. This replaces its
+conclusion. Starter plan, $6 a month, bought before this was written.
+
+What changed in the few hours between them: reading ElevenLabs' terms properly, which decision 9
+had left as an open question, and finding they are cleaner for this project in the one way that
+matters most.
+
+The input rule, which is the question decision 9 was waiting on. Section 2.1 of the Eleven Music
+terms says a customer must not submit as input artist names, songwriter names, song titles, album
+titles, publisher names or record label names, and item (g) adds a substantial or distinctive
+portion of any song's lyrics where a reasonable person would judge the prompt to be referencing a
+particular song. Our own original words are nowhere prohibited, and the only duty attached to
+them is the warranty in section 2.2 that we hold the rights to what we submit. So a parent's
+routine, turned into words we wrote, is allowed. Decision 9's open question is closed.
+
+The age rule, which is why this beats Lyria. ElevenLabs requires the account holder to be 18 or
+over and says nothing about who the audience is. There is no counterpart to the Gemini term that
+forbids use in a service directed towards, or likely to be accessed by, anyone under 18. Decision
+20 accepted a reading of that term. This needs no reading at all. For a graded project whose whole
+subject is children aged 3 to 6, paying more to have nothing for a reviewer to question is worth
+it. Our word lists already exist to block exactly the inputs section 2.1 names, so the safety
+layer we built for one provider fits the other unchanged.
+
+It also closes the gap decision 20 opened. ElevenLabs does the transcriber as well, so the step
+that listens to a finished song and reads back what was actually sung has a provider again, and it
+is one key instead of two vendors.
+
+What it costs, and this is the part to watch. Published rates are $0.15 a minute for music and
+$0.22 an hour for Scribe. In the credits the subscription meters, music is about 900 a minute and
+speech to text about 330, so one 60 second song plus the check on it is roughly 1,230 credits
+against the 30,000 a month Starter includes. That is about 24 songs a month, which is far tighter
+than the $5 a day in `Limits` assumes. Whether API calls draw down those credits or bill
+separately as pay as you go is not something we have established, and the sources disagree. We
+will know from what the usage page deducts after the first real call, and the number here is
+provisional until then.
+
+The consequence is immediate and worth naming: `mm eval` runs 30 briefs end to end. Pointed at the
+real provider even once, that single command would spend more than a month of Starter credits. It
+must stay on fakes, which rule 2 already requires and which the adapter must not make easy to
+undo.
