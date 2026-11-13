@@ -296,6 +296,50 @@ const CHORUS = [
 ];
 const OUTRO = ["All done, {name}, all done", "We did it, one by one"];
 
+/* The songwriter, the same shapes and the same assembly as mm/songwriter.py. The shapes
+   themselves come from DATA, which is generated from the Python source, and a test runs both
+   over the same briefs and compares the result word for word. */
+
+function fnv1a(text) {
+  let value = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) {
+    value = Math.imul(value ^ byte, 0x01000193) >>> 0;
+  }
+  return value;
+}
+
+function pickShape(brief) {
+  const seed = [brief.routine, brief.style, ...brief.steps].join("|").toLowerCase();
+  const options = DATA.shapes[brief.style];
+  return options[fnv1a(seed) % options.length];
+}
+
+function buildSong(brief, shape, withIntro, withTails) {
+  const chorus = () => ({ name: "chorus", lines: shape.chorus.map((text) => ({ text, step: null })) });
+  const sections = [];
+  if (withIntro) sections.push({ name: "intro", lines: shape.intro.map((text) => ({ text, step: null })) });
+  sections.push(chorus());
+  sections.push({
+    name: "verse",
+    lines: brief.steps.map((step, index) => {
+      const tail = withTails ? shape.tails[index % shape.tails.length] : "";
+      return { text: tail ? `${step}, ${tail}` : step, step: index };
+    }),
+  });
+  sections.push(chorus());
+  sections.push({ name: "outro", lines: shape.outro.map((text) => ({ text, step: null })) });
+  return { title: shape.title, sections };
+}
+
+function writeSong(brief) {
+  const shape = pickShape(brief);
+  for (const [withIntro, withTails] of DATA.arrangements) {
+    const lyrics = buildSong(brief, shape, withIntro, withTails);
+    if (!checkLyrics(lyrics, brief).length) return lyrics;
+  }
+  return templateLyrics(brief); // the last resort, as in the service
+}
+
 function templateLyrics(brief) {
   const chorus = () => ({ name: "chorus", lines: CHORUS.map((text) => ({ text, step: null })) });
   return {
@@ -544,8 +588,8 @@ function screenStep(song) {
 }
 
 function writeStep(song) {
-  // The stand-in writer returns the words a person wrote. A model would go here.
-  const lyrics = templateLyrics(song.brief);
+  // The stand-in writer, the same one the service uses. A model would go here.
+  const lyrics = writeSong(song.brief);
   note(song, "write", "ok", "", "stand-in", COST.write);
   const findings = checkLyrics(lyrics, song.brief);
   note(song, "rules", findings.length ? "rejected" : "ok", findings.map((f) => f.code).join(", "));

@@ -13,7 +13,7 @@ from mm.audio import silence_wav, tone_wav
 from mm.domain import Brief, JudgeVerdict, Line, Lyrics
 from mm.ports import Audio, Draft, Judgement, ProviderError, Transcript
 from mm.presets import StylePreset
-from mm.templates import fallback_lyrics
+from mm.songwriter import write_song
 
 
 class Crash(RuntimeError):
@@ -25,7 +25,10 @@ def _next(plan: list[str], default: str = "ok") -> str:
 
 
 class FakeWriter:
-    """Writes the counting song, or a broken draft when told to.
+    """Writes a real song for the brief, or a broken draft when told to.
+
+    The words come from `mm.songwriter`, which is not a model but does give a different song for
+    a different routine or style. A real writer replaces this without the pipeline changing.
 
     Plan items: "ok", "long_line", "missing_step", "unsafe", "error", "crash".
     """
@@ -46,8 +49,9 @@ class FakeWriter:
             raise ProviderError("the fake writer is down")
         if behaviour == "crash":
             raise Crash("writer")
-        lyrics = fallback_lyrics(brief).model_copy(update={"title": "A song from the fake writer"})
-        verse = lyrics.sections[1]
+        lyrics = write_song(brief)
+        # The verse is found by name, not position: a shape may or may not open with an intro.
+        verse = next(section for section in lyrics.sections if section.name == "verse")
         if behaviour == "long_line":
             verse.lines.append(
                 Line(text="and this one line goes on for far too many words to sing")

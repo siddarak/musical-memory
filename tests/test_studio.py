@@ -141,7 +141,8 @@ def test_a_songs_page_shows_every_step_it_took(team):
     for step in ("screen", "write", "rules", "judge", "compose", "audio_check", "preview"):
         assert f"<td>{step}</td>" in page.text
     assert page.text.count('class="pill pay"') == 4, "writer, judge, music and transcript"
-    assert "Number one, brush teeth" in page.text, "the words it ended up with"
+    for step in team.rig.store.get(song_id).brief.steps:
+        assert step.capitalize() in page.text or step in page.text, "the words it ended up with"
     assert "brush teeth" in page.text and "put on pajamas" in page.text, "the brief's steps"
     assert "100% of the lyrics" in page.text
     assert "parent" in page.text, "who approved it"

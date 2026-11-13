@@ -185,3 +185,25 @@ from any other site, and stores nothing at all, which the page says plainly.
 
 What stays true: the copy cannot write a song. Its words come from the template and its audio
 is the test tone, and the page says so above the player rather than leaving anyone to guess.
+
+## 18. A songwriter with no model in it
+
+**Decided.** `mm/songwriter.py` fits the parent's steps into one of ten hand-written song
+shapes, two per style, chosen from the brief. It is the stand-in writer until a model is wired
+in, and the browser copy runs the same one.
+
+Why: the earlier stand-in returned one counting song for every brief, so "bedtime" and
+"cleaning up" came back word for word the same, with the parent's steps barely visible. That
+makes a demo look broken and tells a reviewer nothing. Ten shapes with the steps carried into
+the verse gives a different, singable song for a different routine, with no key and no cost.
+
+How it stays correct: every verse line puts the step first and adds a short fixed tail, because
+a step can be a noun phrase ("lights out") as easily as a verb phrase, and nothing reads well in
+front of both. The builder tries four arrangements, runs each past the real lyric rules, and
+returns the first that passes; if none does it returns the counting song, which always passes. A
+test says that last resort is never reached for any brief the app accepts, so a mistake in a
+hand-written shape shows up as a failure rather than a quiet downgrade. Two of my own shapes had
+a nine word line and two had a four word tail; the sweep caught all four.
+
+What it is not: a model. The words are ours, not written for this family, and the gaps list on
+the team view says so.

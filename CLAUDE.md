@@ -38,6 +38,7 @@ pytest tests/test_pipeline.py -k crash
 ruff check . && ruff format .      # lint and format
 mypy                               # types, strict
 python scripts/check_secrets.py    # before every commit
+python scripts/build_preview_data.py   # after changing a list, a shape or a decision
 mm redteam                         # hostile prompts against the checks
 mm eval                            # 30 test briefs end to end on fakes
 mm serve                           # the web page on fakes; prints a link to open
@@ -53,6 +54,10 @@ All of these must pass before you say a change is done. Say what you ran and wha
 - `src/mm/safety/rules.py`, `wordlists.py`: checks on input and on lyrics.
 - `src/mm/ports.py`: what a provider must look like. Real adapters go in `src/mm/adapters/`
   (not built yet) and must fit these shapes without changing the pipeline.
+- `src/mm/songwriter.py`: writes a song from ten hand-written shapes, no model. Every shape is
+  checked against the real lyric rules before it is returned, and `templates.py` is the last
+  resort if none passes. `docs/app.js` carries the same songwriter for the browser copy, and a
+  test runs both and compares them word for word.
 - `src/mm/fakes.py`: stand-ins. Each takes a `plan` of behaviours to play back.
 - `src/mm/demo.py`: the forced test cases. Each one is a real run; nothing is written into the
   store by hand, and a case that is meant to be refused fails loudly if it stops being refused.

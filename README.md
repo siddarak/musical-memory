@@ -19,9 +19,9 @@ caps, with no install. Type a routine a check should refuse and it is refused th
 opens with eight songs already in it, so both the parent side and the team view have something
 to look at.
 
-Two things the browser copy cannot do, and it says so on the page: the words come from a
-template rather than a model, and the audio is the 60 second test tone. The Python service
-below is the real thing.
+Two things the browser copy cannot do, and it says so on the page: no model writes the words,
+and the audio is the 60 second test tone. It runs the same songwriter as the service, checked
+song for song by a test, so what you hear described there is what the service does.
 
 ## Run it
 
@@ -63,15 +63,16 @@ Each link is a password. Anyone who has one can use it, so treat them that way.
 | The eight-step pipeline, both human approvals, every limit | Works |
 | The web pages, on a phone, a tablet or a laptop | Works |
 | The team view: journey, songs, costs, event log, decisions | Works |
-| Words that follow the routine you typed | Works, from a template |
+| A different song for a different routine, from hand-written shapes | Works |
 | **Words written by a model** | **Needs an Anthropic API key** |
 | **Real music** | **Needs an ElevenLabs API key** |
 | Hosting | Not set up. One machine, started by hand. |
 
-Without those two keys the service runs end to end but plays a 60 second test tone instead of a
-song, and writes the words from a counting template rather than a model. Everything the tone and
-the template pass through is real: the same checks, the same approvals, the same limits, and the
-same record of what each step cost.
+Without those two keys the service still runs end to end. The words come from ten hand-written
+song shapes with your own steps fitted in, so "bedtime" and "cleaning up" really do give
+different songs, and the audio is a 60 second test tone. A model would write better words and a
+music provider would make an actual song, but everything they pass through is real: the same
+checks, the same approvals, the same limits, and the same record of what each step cost.
 
 ## Other commands
 
@@ -97,7 +98,8 @@ src/mm/
   pipeline.py      the eight steps, the two human approvals, and every limit
   safety/rules.py  checks on what a parent types and on finished lyrics
   safety/wordlists.py
-  templates.py     fallback words a person wrote, for when the writer fails
+  songwriter.py    writes a song from hand-written shapes, with no model
+  templates.py     the simplest possible song, the last resort if even that fails
   audio.py         checks on finished audio
   ports.py         the shapes a provider must fit (writer, judge, music, store)
   fakes.py         free, instant stand-ins for the paid providers

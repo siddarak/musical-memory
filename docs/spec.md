@@ -188,8 +188,10 @@ Stated plainly so nobody assumes more than exists.
 - **No model judge yet.** 8 of the 37 hostile prompts need judgement (an unsafe instruction in
   ordinary words, an unkind tone, another language). They get through today. The fake judge
   passes everything.
-- **No real writer or music.** The fake writer returns the fallback song, so results on fakes
-  say nothing about song quality, cost per usable song or speed.
+- **No model writes the words.** The stand-in writer fits the parent's steps into one of ten
+  hand-written song shapes. A different routine or style gives a different song, but results on
+  stand-ins say nothing about what a model would write, nor about cost per usable song or speed.
+- **No real music.** The audio is a test tone.
 - **Word lists are English only** and short on purpose.
 - **Loudness thresholds are first guesses.** Tune them on real audio.
 - **The audio inspector reads 16-bit WAV only.**
