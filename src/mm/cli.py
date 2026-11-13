@@ -16,10 +16,11 @@ from typing import Any
 from mm import __version__
 from mm.audio import WavInspector
 from mm.controls import EnvControls, StaticControls
-from mm.domain import SongStatus
+from mm.domain import Brief, SongStatus
 from mm.fakes import FakeJudge, FakeMusic, FakeTranscriber, FakeWriter
 from mm.pipeline import LimitReached, Limits, Pipeline
 from mm.ports import Controls, SongStore
+from mm.presets import STYLE_PRESETS
 from mm.safety import rules
 from mm.store import InMemoryStore, JsonDirStore
 
@@ -283,6 +284,79 @@ def _codes(args: argparse.Namespace) -> int:
     return 0
 
 
+def _check_provider(args: argparse.Namespace) -> int:
+    """Make one real call, so the adapter is proved against the live API rather than assumed.
+
+    This is the only command that can spend money, and only with the opt-in, a cap and --yes.
+    `eval`, `demo` and `serve` are wired to the fakes in code and cannot reach this path: one
+    `eval` run is 30 songs, which is more than a month of Starter credits.
+    """
+    from mm.adapters import SettingsError, build_providers
+    from mm.songwriter import write_song
+
+    try:
+        music, transcriber = build_providers()
+    except SettingsError as err:
+        print(f"Not set up for a real call: {err}")
+        return 2
+
+    if music.name == "fake":
+        print(
+            "This would use the fake providers, so it would prove nothing.\n"
+            "To make a real call, set these in .env and load it into your shell:\n"
+            "  MM_REAL_PROVIDERS=yes\n"
+            "  MM_SPEND_CAP_USD=1.00\n"
+            "  ELEVENLABS_API_KEY=... (never paste this into a chat, an issue or a commit)"
+        )
+        return 2
+
+    brief = Brief(
+        routine="bedtime",
+        steps=["brush teeth", "put on pajamas", "read one book", "lights out"],
+        style=args.style,
+        age_band="3-4",
+        nickname="Mimi",
+    )
+    lyrics = write_song(brief)
+    preset = STYLE_PRESETS[brief.style]
+    estimate = preset.seconds / 60 * 0.15
+
+    print(f"About to make one real call to {music.name} ({music.model}).")
+    print(f"  words:    {len(lyrics.render(brief.nickname).split())} of them, written locally")
+    print(f"  length:   {preset.seconds} seconds, style {preset.label}")
+    print(f"  estimate: about ${estimate:.2f}")
+    if not args.yes:
+        print("\nNothing was sent. Add --yes to actually spend it.")
+        return 0
+
+    try:
+        audio = music.compose(lyrics, brief.nickname, preset)
+    except Exception as err:  # noqa: BLE001 - the point is to report whatever went wrong
+        print(f"\nThe call failed: {err}")
+        return 1
+
+    facts = WavInspector().inspect(audio.data, audio.mime)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_bytes(audio.data)
+    print("\nThe call worked.")
+    print(f"  saved:  {args.out} ({len(audio.data):,} bytes, {audio.mime})")
+    print(f"  length: {facts.seconds:.1f} seconds")
+    print(f"  peak:   {facts.peak:.2f}   loudness: {facts.rms_dbfs:.1f} dBFS")
+    print(f"  cost:   ${audio.cost_usd:.3f}")
+
+    if args.transcribe:
+        try:
+            heard = transcriber.transcribe(audio.data, audio.mime)
+        except Exception as err:  # noqa: BLE001
+            print(f"\nThe song was made but the transcriber failed: {err}")
+            return 1
+        print(f"\n  transcriber heard {len(heard.text.split())} words, ${heard.cost_usd:.3f}")
+        print("  Read it yourself and compare it with the words above. A person decides.")
+
+    print("\nListen to the whole file before any child hears it. That gate is not automated.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="mm", description="Musical Memory pipeline tools. Fake providers only: free, offline."
@@ -331,6 +405,17 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--team-code", default="", help="a code that opens the team view")
     demo.add_argument("--keep", action="store_true", help="add to what is there, do not wipe it")
     demo.set_defaults(run=_demo)
+
+    check = commands.add_parser(
+        "check-provider", help="make ONE real call to prove the adapter works (costs money)"
+    )
+    check.add_argument("--yes", action="store_true", help="actually spend it; off by default")
+    check.add_argument("--style", default="gentle_lullaby", choices=sorted(STYLE_PRESETS))
+    check.add_argument("--out", type=Path, default=Path("out/provider-check.wav"))
+    check.add_argument(
+        "--transcribe", action="store_true", help="also read the song back (costs a little more)"
+    )
+    check.set_defaults(run=_check_provider)
 
     codes = commands.add_parser("codes", help="make new participant codes")
     codes.add_argument("--count", type=int, default=1)

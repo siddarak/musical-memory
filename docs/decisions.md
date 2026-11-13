@@ -309,3 +309,43 @@ The consequence is immediate and worth naming: `mm eval` runs 30 briefs end to e
 real provider even once, that single command would spend more than a month of Starter credits. It
 must stay on fakes, which rule 2 already requires and which the adapter must not make easy to
 undo.
+
+## 22. The music adapter asks for PCM, injects its transport, and cannot be reached by `mm eval`
+
+**Decided while building it, 13 Nov 2026.** Four choices worth recording, because each had a
+real alternative.
+
+**PCM rather than MP3.** The music endpoint returns MP3 by default, and `WavInspector` reads
+16-bit WAV only, so the audio check would have failed on every real song. The alternatives were
+to add an MP3 decoder, which means a new dependency or ffmpeg on every machine including Sid's
+laptop, or to teach the inspector a second format, which means editing a file that needs
+review. Asking for `pcm_22050` and wrapping the bytes in a WAV header with the standard
+library's `wave` costs nothing and leaves the inspector untouched. `pcm_44100` would sound
+better but needs a Pro plan; `mp3_44100_192` needs Creator. We are on Starter.
+
+**The transport is injected.** Every test passes a fake callable, so no test can reach the
+network even by mistake, and there is no HTTP mocking library to learn. The default transport
+is a dozen lines of `urllib` and is the only code in the package that opens a socket. The
+alternative, a real HTTP client plus a mocking library, buys nothing here and adds two
+dependencies.
+
+**One shared `SpendCap`, reserved before the call.** The music and transcriber adapters bill to
+the same key, so they share one running total rather than getting a budget each. Spend is
+reserved before the request and settled afterwards, matching what the pipeline already does for
+music calls, so a crash in the HTTP layer still counts. A cap checked after the fact is not a
+cap.
+
+**`eval`, `demo` and `serve` cannot reach a real provider at all**, even with every setting in
+place. They construct fakes directly. One `eval` run is 30 songs end to end, which at roughly
+1,230 credits a song is more than a month of Starter's 30,000. Making that command capable of
+spending money and relying on an environment variable to stop it is a mistake waiting for a
+tired evening. The only command that can spend is `mm check-provider`, which does one call and
+needs `--yes`.
+
+**What is not proved.** This adapter has never spoken to ElevenLabs. The machine it was written
+on cannot reach that host, so everything here is checked against the published API reference
+and against a fake transport, not against a real reply. Two things are most likely to be wrong
+on the first real call: the channel count of the returned PCM, and the exact shape of the
+speech-to-text reply. Both were written to fail loudly. A wrong channel count makes the song
+come out the wrong length, and the adapter raises an error naming the length rather than
+handing on a bad song.
