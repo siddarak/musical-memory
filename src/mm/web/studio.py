@@ -213,8 +213,11 @@ REDTEAM = {"total": 37, "stopped": 29, "for_judge": 8}
 GAPS: tuple[str, ...] = (
     "The model judge is not built. Eight of the hostile prompts get past the free checks "
     "today, and the stand-in judge passes everything.",
-    "There is no real lyrics writer and no real music. The audio is a test tone, so nothing "
-    "here says anything about how good or how safe a real song would be.",
+    "No model writes the words. They come from ten hand-written song shapes with the "
+    "parent's own steps fitted in, so a different routine really does give a different song, "
+    "but a model would do better.",
+    "There is no real music. The audio is a test tone, so nothing here says anything about "
+    "how a real song would sound.",
     "Nothing is hosted. The service runs on one machine, started by hand.",
     "The word lists are English only, and short on purpose.",
     "There is no private play link for a child yet. A parent plays the song from their own page.",

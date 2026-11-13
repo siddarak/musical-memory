@@ -7,14 +7,19 @@ figures it ships are checked against the real ones here.
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
+from mm.domain import Brief
 from mm.presets import STYLE_PRESETS
 from mm.safety import rules, wordlists
+from mm.songwriter import ARRANGEMENTS, SHAPES, write_song
 from mm.web import studio
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -118,7 +123,7 @@ def test_the_page_says_plainly_what_it_is_and_what_it_cannot_do():
     text = " ".join(PAGE.read_text().split())  # the page wraps; the sentences are what matter
     assert "browser copy" in text
     assert "Nothing you type leaves this page" in text
-    assert "template rather than a model" in text
+    assert "hand-written song shapes rather than a model" in text
     assert "test tone" in text
     assert "Waiting times are shortened" in text
 
@@ -150,3 +155,80 @@ def test_a_brief_the_service_refuses_is_in_the_page_as_a_seeded_case():
         Brief(routine="bedtime", steps=brief_steps, style="silly_bounce", age_band="3-4")
     )
     assert [finding.code for finding in refused] == ["brand_name"]
+
+
+def test_the_song_shapes_are_the_services_own(embedded):
+    written = {
+        style: [
+            {
+                "title": shape.title,
+                "intro": list(shape.intro),
+                "chorus": list(shape.chorus),
+                "tails": list(shape.tails),
+                "outro": list(shape.outro),
+            }
+            for shape in shapes
+        ]
+        for style, shapes in SHAPES.items()
+    }
+    assert embedded["shapes"] == written
+    assert [tuple(row) for row in embedded["arrangements"]] == list(ARRANGEMENTS)
+
+
+def _node_songs(tmp_path: Path, cases: list[dict]) -> list[str]:
+    """Run the page's own songwriter under node and return what it sings."""
+    page = PAGE.read_text()
+    json_block = re.search(
+        r'<script type="application/json" id="mm-data">(.*?)</script>', page, re.S
+    ).group(1)
+    data = json.dumps(json_block)
+    harness = (
+        f"global.document = {{ getElementById: () => ({{ textContent: {data} }}),"
+        " addEventListener: () => {} };\nglobal.window = { setTimeout: () => {} };\n"
+    )
+    script = (SITE / "app.js").read_text().replace("\nseed();\nrender();\n", "\n")
+    tail = (
+        "\nconst briefs = JSON.parse(process.argv[2]);\n"
+        "console.log(JSON.stringify(briefs.map((b) => renderWords(writeSong(b), b.nickname))));\n"
+    )
+    runner = tmp_path / "run.js"
+    runner.write_text(harness + script + tail)
+    done = subprocess.run(
+        ["node", str(runner), json.dumps(cases)], capture_output=True, text=True, check=True
+    )
+    return json.loads(done.stdout)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_the_browser_copy_writes_exactly_the_same_songs(tmp_path):
+    """Two implementations of one songwriter. If they ever disagree, the page is lying about
+    what the service would do, so every style and every length is compared word for word."""
+    routines = [
+        ("cleaning up", ["clear the plates", "fill the sink", "wash each cup", "dry your hands"]),
+        ("bedtime", ["brush teeth", "put on pajamas", "read one book", "lights out"]),
+        ("leaving the house", ["shoes on", "coat on", "hold my hand"]),
+        ("snack time", [f"{w} two three four five" for w in ("ant", "bee", "cat", "dog", "eel")]),
+    ]
+    cases = [
+        {"routine": routine, "steps": steps, "style": style, "ageBand": "5-6", "nickname": nick}
+        for (routine, steps), style, nick in itertools.product(
+            routines, STYLE_PRESETS, (None, "Ravi")
+        )
+    ]
+    assert len(cases) == 40
+
+    ours = [
+        write_song(
+            Brief(
+                routine=case["routine"],
+                steps=case["steps"],
+                style=case["style"],
+                age_band="5-6",
+                nickname=case["nickname"],
+            )
+        ).render(case["nickname"])
+        for case in cases
+    ]
+    theirs = _node_songs(tmp_path, cases)
+    for case, want, got in zip(cases, ours, theirs, strict=True):
+        assert got == want, f"{case['routine']} / {case['style']} differs"

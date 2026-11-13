@@ -91,10 +91,11 @@ def test_a_parent_can_make_a_song_from_start_to_finish(site):
     url = site.start()
     words = site.get(url)
     assert "Do these words sound right?" in words.text
-    assert "One by one, Mimi, here we go" in words.text
-    assert '<span class="bead" title="Step 1 of the routine">1</span>Number one, brush teeth' in (
-        words.text
-    )
+    assert "Mimi" in words.text, "the name the parent gave is sung"
+    for number, step in enumerate(site.song(url).brief.steps, start=1):
+        bead = f'<span class="bead" title="Step {number} of the routine">{number}</span>'
+        assert bead in words.text, f"step {number} has no number beside it"
+        assert step.capitalize() in words.text or step in words.text, step
     assert site.rig.music.calls == 0
 
     assert site.post(f"{url}/words", {"action": "approve"}).status_code == 303
@@ -276,20 +277,34 @@ def typed_lines(site: Site, url: str) -> list[str]:
     return [line.text for line in site.song(url).lyrics.lines()]
 
 
+def chorus_line_numbers(site: Site, url: str) -> list[int]:
+    """Where each chorus's first line sits in the flat list the edit form posts back."""
+    song = site.song(url)
+    found, seen = [], 0
+    for section in song.lyrics.sections:
+        if section.name == "chorus":
+            found.append(seen)
+        seen += len(section.lines)
+    return found
+
+
 def test_a_parent_can_change_the_words(site):
     url = site.start()
     form = site.get(f"{url}?edit=1")
     lines = typed_lines(site, url)
     assert form.text.count('name="line"') == len(lines)
-    assert 'value="One by one, {name}, here we go"' in form.text
+    assert f'value="{lines[0]}"' in form.text, "the words are in the form, ready to edit"
 
-    lines[0] = "Step by step, we find our way"
-    lines[8] = "Step by step, we find our way"  # the chorus has to stay the same both times
+    # Both choruses have to change together, which is the rule this edit respects.
+    first, second = chorus_line_numbers(site, url)
+    lines[first] = lines[second] = "Step by step, we find our way"
     saved = site.post(f"{url}/words", {"action": "save", "line": lines})
     assert saved.status_code == 303
     song = site.song(url)
-    assert song.lyrics_source == "parent_edit" and song.lyrics.lines()[0].text == lines[0]
-    assert song.lyrics.lines()[4].step == 0, "the step tags stay where they were"
+    assert song.lyrics_source == "parent_edit"
+    assert song.lyrics.lines()[first].text == "Step by step, we find our way"
+    steps = [line.step for line in song.lyrics.lines() if line.step is not None]
+    assert steps == sorted(steps) and set(steps) == set(range(len(song.brief.steps)))
     assert site.events.items[-1]["detail"] == {"edited": True}
 
 

@@ -16,7 +16,6 @@ from mm.demo import (
     REFUSED,
     STOP_AT_LISTEN,
     STOP_AT_WORDS,
-    Case,
     Clock,
     seed,
 )
@@ -180,20 +179,14 @@ def test_the_seeding_writes_an_event_for_every_song(seeded):
         assert typed not in written, "the log never holds what a parent typed"
 
 
-def test_an_edit_that_was_meant_to_be_refused_but_passes_is_an_error():
-    """If a rule is ever loosened, this case stops being a demonstration of it. Say so loudly."""
-    broken = Case(
-        shows="An edit that the checks were meant to refuse, but will not.",
-        household="demo-test",
-        routine="bedtime",
-        steps=("brush teeth", "pajamas on", "lights out"),
-        style="gentle_lullaby",
-        age_band="3-4",
-        ends_at=PUBLISH,
-        refused_edit=(4, "Number one, brush teeth"),  # the line it already says
-    )
+def test_a_loosened_rule_makes_the_demo_fail_loudly(monkeypatch):
+    """One case exists to show the chorus rule working. If that rule is ever loosened, the case
+    stops demonstrating anything, so the seeding must shout rather than quietly show a pass."""
+    import mm.pipeline
+
+    monkeypatch.setattr(mm.pipeline.rules, "check_lyrics", lambda lyrics, brief: [])
     with pytest.raises(AssertionError, match="meant to be refused"):
-        seed(InMemoryStore(), MemoryEvents(), [broken])
+        seed(InMemoryStore(), MemoryEvents())
 
 
 def test_seeding_lifts_the_caps_only_for_itself(tmp_path):

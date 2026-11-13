@@ -48,9 +48,12 @@ class Case:
     nickname: str | None = None
     writer_plan: tuple[str, ...] = ()
     music_plan: tuple[str, ...] = ()
-    # Lines the parent rewrites, as the form would send them. The refused one is tried first.
-    refused_edit: tuple[int, str] | None = None
-    edit_line: tuple[int, str] | None = None
+    # What the parent rewrites. `breaks_chorus` changes one copy of the chorus, which the
+    # checks always refuse; `rewrites_first_step` rewrites the line for step one, keeping the
+    # step's own words so it passes. Both find their line by what it is, not where it sits, so
+    # a change to the song's shape cannot quietly turn either case into something else.
+    breaks_chorus: bool = False
+    rewrites_first_step: str | None = None
     retry_once: bool = False  # the adult says no the first time, then approves
     minutes_ago: int = 0
     reviewer: str = "parent"
@@ -77,9 +80,8 @@ CASES: tuple[Case, ...] = (
         age_band="5-6",
         nickname="Mina",
         ends_at=PUBLISH,
-        # Line 0 is in the chorus, which is sung twice, so changing one copy is refused.
-        refused_edit=(0, "Here we go, it's brushing time"),
-        edit_line=(4, "First we wet the brush"),
+        breaks_chorus=True,
+        rewrites_first_step="First we wet the brush",
         minutes_ago=150,
     ),
     Case(
@@ -174,12 +176,28 @@ def _ids() -> Callable[[], str]:
     return mint
 
 
-def _edited(lyrics: Lyrics, which: int, text: str) -> Lyrics:
+def _rewrite(lyrics: Lyrics, which: int, text: str) -> Lyrics:
     """The words with one line rewritten, the way a parent's edit arrives from the form."""
     data = lyrics.model_dump()
     flat = [line for section in data["sections"] for line in section["lines"]]
     flat[which]["text"] = text
     return Lyrics.model_validate(data)
+
+
+def _first_chorus_line(lyrics: Lyrics) -> int:
+    seen = 0
+    for section in lyrics.sections:
+        if section.name == "chorus":
+            return seen
+        seen += len(section.lines)
+    raise AssertionError("a song with no chorus cannot have passed the checks")
+
+
+def _first_step_line(lyrics: Lyrics) -> int:
+    for index, line in enumerate(lyrics.lines()):
+        if line.step == 0:
+            return index
+    raise AssertionError("a song that never sings step one cannot have passed the checks")
 
 
 def seed(
@@ -250,11 +268,11 @@ def _run(pipeline: Pipeline, events: EventLog, case: Case) -> Song:
         return song
 
     events.record(case.household, "words_shown", song.id)
-    if case.refused_edit and song.lyrics:
+    if case.breaks_chorus and song.lyrics:
+        # Changing one copy of the chorus and not the other. Always refused.
+        spoiled = _rewrite(song.lyrics, _first_chorus_line(song.lyrics), "Here we go again now")
         try:
-            pipeline.approve_lyrics(
-                song.id, by=case.reviewer, edited=_edited(song.lyrics, *case.refused_edit)
-            )
+            pipeline.approve_lyrics(song.id, by=case.reviewer, edited=spoiled)
         except LyricsNotAccepted as refusal:
             codes = sorted({finding.code for finding in refusal.findings})
             events.record(case.household, "edit_refused", song.id, codes=codes)
@@ -263,8 +281,8 @@ def _run(pipeline: Pipeline, events: EventLog, case: Case) -> Song:
         song = pipeline.store.get(song.id)
 
     edited = None
-    if case.edit_line and song.lyrics:
-        edited = _edited(song.lyrics, *case.edit_line)
+    if case.rewrites_first_step and song.lyrics:
+        edited = _rewrite(song.lyrics, _first_step_line(song.lyrics), case.rewrites_first_step)
     song = pipeline.approve_lyrics(song.id, by=case.reviewer, edited=edited)
     events.record(case.household, "words_approved", song.id, edited=edited is not None)
     song = pipeline.advance(song.id)
