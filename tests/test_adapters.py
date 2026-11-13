@@ -527,3 +527,66 @@ def test_serve_with_the_flag_and_the_settings_uses_the_real_music_provider(
     assert pipeline.music.name == "elevenlabs"
     assert pipeline.transcriber.name == "elevenlabs"
     assert pipeline.writer.name == "fake", "the writer is still a stand-in; say so, do not hide it"
+
+
+# ---- an error a person can act on --------------------------------------------------------
+
+
+def test_an_unreachable_provider_says_why_not_just_the_exception_name(good_lyrics: Lyrics):
+    """ "URLError" told Sid nothing. The reason is what he needed, and it is ours, not theirs."""
+    import ssl
+    import urllib.error
+
+    def cert_problem(method: str, url: str, headers: dict[str, str], body: bytes) -> Reply:
+        raise urllib.error.URLError(
+            ssl.SSLCertVerificationError("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get issuer")
+        )
+
+    provider = ElevenLabsMusic(settings(), transport=cert_problem)
+    with pytest.raises(ProviderError, match="CERTIFICATE_VERIFY_FAILED"):
+        provider.compose(good_lyrics, "Mimi", PRESET)
+
+
+def test_the_key_is_redacted_from_a_connection_error_even_so(good_lyrics: Lyrics):
+    def leaky(method: str, url: str, headers: dict[str, str], body: bytes) -> Reply:
+        raise OSError("connection to https://api.elevenlabs.io?k=test-key-not-real refused")
+
+    provider = ElevenLabsMusic(settings(), transport=leaky)
+    with pytest.raises(ProviderError) as caught:
+        provider.compose(good_lyrics, "Mimi", PRESET)
+    assert "test-key-not-real" not in str(caught.value)
+    assert "***" in str(caught.value)
+
+
+def test_a_very_long_error_is_cut_short_rather_than_filling_the_screen(good_lyrics: Lyrics):
+    def chatty(method: str, url: str, headers: dict[str, str], body: bytes) -> Reply:
+        raise OSError("x" * 5000)
+
+    provider = ElevenLabsMusic(settings(), transport=chatty)
+    with pytest.raises(ProviderError) as caught:
+        provider.compose(good_lyrics, "Mimi", PRESET)
+    assert len(str(caught.value)) < 300
+
+
+def test_an_error_with_nothing_to_say_still_names_its_type(good_lyrics: Lyrics):
+    def silent(method: str, url: str, headers: dict[str, str], body: bytes) -> Reply:
+        raise TimeoutError()
+
+    provider = ElevenLabsMusic(settings(), transport=silent)
+    with pytest.raises(ProviderError, match="TimeoutError"):
+        provider.compose(good_lyrics, "Mimi", PRESET)
+
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        ("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get issuer", "Install Certificates"),
+        ("nodename nor servname provided", "DNS"),
+        ("The read operation timed out", "timed out"),
+        ("something nobody predicted", "Send me the line above"),
+    ],
+)
+def test_the_hint_points_at_the_usual_cause(message: str, expected: str):
+    from mm.cli import _hint
+
+    assert expected in _hint(message)

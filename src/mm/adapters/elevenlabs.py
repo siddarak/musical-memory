@@ -114,6 +114,27 @@ def _brand_in(text: str) -> bool:
     return any(pattern.search(text) for pattern in _BRAND_PATTERNS)
 
 
+def redact(text: str, key: str) -> str:
+    """Never let the key travel in a message, however the message was built."""
+    if key and key in text:
+        text = text.replace(key, "***")
+    return text
+
+
+def _unreachable(err: Exception, key: str, what: str) -> ProviderError:
+    """Say why the call did not happen.
+
+    The reason here comes from our own socket, not from the provider, so it is safe to show and
+    is usually the whole answer: a certificate problem, no network, a timeout. An earlier
+    version printed only the exception's class name, which told a reader nothing they could act
+    on. The key is redacted anyway, because a message nobody checks is a message that leaks.
+    """
+    reason = getattr(err, "reason", None)
+    detail = str(reason) if reason is not None else str(err)
+    detail = redact(detail.strip(), key)[:200] or type(err).__name__
+    return ProviderError(f"{what} could not be reached: {detail}")
+
+
 def _fail(status: int) -> ProviderError:
     """Never include the provider's own message: it can carry the key back at us."""
     if status in (401, 403):
@@ -185,9 +206,7 @@ class ElevenLabsMusic:
         except SpendCapReached:
             raise
         except Exception as err:  # the money is gone whatever went wrong
-            raise ProviderError(
-                f"the music provider could not be reached: {type(err).__name__}"
-            ) from None
+            raise _unreachable(err, self.settings.api_key, "the music provider") from None
 
         if reply.status != 200:
             raise _fail(reply.status)
@@ -259,9 +278,7 @@ class ElevenLabsTranscriber:
         except SpendCapReached:
             raise
         except Exception as err:
-            raise ProviderError(
-                f"the transcriber could not be reached: {type(err).__name__}"
-            ) from None
+            raise _unreachable(err, self.settings.api_key, "the transcriber") from None
 
         if reply.status != 200:
             raise _fail(reply.status)

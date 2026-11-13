@@ -326,6 +326,34 @@ def _codes(args: argparse.Namespace) -> int:
     return 0
 
 
+def _hint(message: str) -> str:
+    """Point at the usual cause, because a failure a reader cannot act on wastes their day."""
+    if "CERTIFICATE_VERIFY" in message or "SSL" in message.upper():
+        return (
+            "\nThat is a certificate problem on this machine, not a problem with the key or\n"
+            "with our code. Python cannot verify the connection. On macOS, the usual fixes:\n"
+            "  1. Run the certificate installer that came with Python:\n"
+            '       open "/Applications/Python 3.13/Install Certificates.command"\n'
+            "     (change the version to match yours; look in /Applications for the folder)\n"
+            "  2. Or install Python with Homebrew, which brings its own certificates:\n"
+            "       brew install python@3.13\n"
+            "     then make the virtual environment again with that Python.\n"
+            "  3. Or, if you are on a university or office network that inspects traffic,\n"
+            "     try another network. That setup breaks certificate checks by design."
+        )
+    if "Name or service not known" in message or "nodename nor servname" in message:
+        return "\nThat is a DNS failure. This machine cannot look up the address at all."
+    if "timed out" in message.lower() or "TimeoutError" in message:
+        return (
+            "\nThe request timed out. A song takes around a minute to make, so a slow\n"
+            "connection can hit the limit. Try once more before changing anything."
+        )
+    return (
+        "\nNothing was made, so nothing was charged beyond what the cap already recorded.\n"
+        "Send me the line above and I will work out what it means."
+    )
+
+
 def _check_provider(args: argparse.Namespace) -> int:
     """Make one real call, so the adapter is proved against the live API rather than assumed.
 
@@ -379,6 +407,7 @@ def _check_provider(args: argparse.Namespace) -> int:
         audio = music.compose(lyrics, brief.nickname, preset)
     except Exception as err:  # noqa: BLE001 - the point is to report whatever went wrong
         print(f"\nThe call failed: {err}")
+        print(_hint(str(err)))
         return 1
 
     facts = WavInspector().inspect(audio.data, audio.mime)
