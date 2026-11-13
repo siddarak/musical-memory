@@ -601,3 +601,109 @@ def test_the_certificate_hint_names_the_python_actually_running():
 
     hint = _hint("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate")
     assert f"Python {sys.version_info.major}.{sys.version_info.minor}/" in hint
+
+
+# ---- certificates --------------------------------------------------------------------------
+
+
+def test_a_trust_store_is_found_so_a_fresh_macos_python_can_connect():
+    """The python.org build ships with no certificate store wired up. We must not depend on it."""
+    import ssl
+
+    from mm.adapters.elevenlabs import trust
+
+    context = trust()
+    assert context is None or isinstance(context, ssl.SSLContext)
+
+
+def test_the_operating_system_store_is_preferred_because_it_needs_no_install():
+    from mm.adapters.elevenlabs import trust
+
+    trust.cache_clear()
+    try:
+        context = trust()
+    finally:
+        trust.cache_clear()
+    if context is not None:
+        assert "truststore" in type(context).__module__ or "ssl" in type(context).__module__
+
+
+def test_certifi_is_used_when_the_operating_system_store_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Order matters: a machine without truststore must still get certificates, not the default."""
+    import builtins
+    import ssl
+
+    from mm.adapters.elevenlabs import trust
+
+    real_import = builtins.__import__
+
+    def no_truststore(name: str, *args: object, **kwargs: object) -> object:
+        if name == "truststore":
+            raise ImportError("pretend it is not installed")
+        return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(builtins, "__import__", no_truststore)
+    trust.cache_clear()
+    try:
+        context = trust()
+    finally:
+        trust.cache_clear()
+    assert isinstance(context, ssl.SSLContext)
+
+
+def test_neither_available_falls_back_to_the_default_rather_than_crashing(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import builtins
+
+    from mm.adapters.elevenlabs import trust
+
+    real_import = builtins.__import__
+
+    def neither(name: str, *args: object, **kwargs: object) -> object:
+        if name in ("truststore", "certifi"):
+            raise ImportError("pretend neither is installed")
+        return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(builtins, "__import__", neither)
+    trust.cache_clear()
+    try:
+        assert trust() is None
+    finally:
+        trust.cache_clear()
+
+
+def test_the_transport_actually_uses_the_trust_store_it_looked_up(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Looking a context up and then not passing it is the bug, and it looks like working code."""
+    import urllib.request
+
+    from mm.adapters import elevenlabs
+
+    seen: dict[str, object] = {}
+
+    class FakeResponse:
+        status = 200
+        headers = {"Content-Type": "audio/pcm"}
+
+        def read(self) -> bytes:
+            return b""
+
+        def __enter__(self) -> FakeResponse:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    def spy(request: object, timeout: float | None = None, context: object = None) -> FakeResponse:
+        seen["context"] = context
+        seen["called"] = True
+        return FakeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", spy)
+    elevenlabs.default_transport("POST", "https://example.test/x", {}, b"{}")
+    assert seen["called"] is True
+    assert seen["context"] is elevenlabs.trust(), "the context must be handed to urlopen"

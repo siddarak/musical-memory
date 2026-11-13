@@ -7,7 +7,9 @@ dependencies = ["pydantic>=2.6"]
 
 [project.optional-dependencies]
 web = ["fastapi>=0.160", "jinja2>=3.1", "uvicorn>=0.50"]
-dev = ["musical-memory[web]", "pytest>=8", "ruff>=0.6", "mypy>=1.10", "httpx2>=2.16"]
+# Only needed to call a paid provider. See the note on trust() in adapters/elevenlabs.py.
+real = ["truststore>=0.9", "certifi>=2024.2"]
+dev = ["musical-memory[web]", "musical-memory[real]", "pytest>=8", "ruff>=0.6", "mypy>=1.10", "httpx2>=2.16"]
 
 [project.scripts]
 mm = "mm.cli:main"

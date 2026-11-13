@@ -395,3 +395,31 @@ tone. Refusing is louder and kinder.
 
 The writer and the judge are still stand-ins even with `--real`, and the startup message says
 only that real music is on. Nothing here should let someone believe a model wrote the words.
+
+
+## 25. Find the certificates ourselves rather than asking a reader to
+
+**Decided 13 Nov 2026, after Sid lost fifteen minutes to it.** The adapter's first real call
+failed with `CERTIFICATE_VERIFY_FAILED`. The python.org build of Python on macOS ships without
+its certificate store connected, so every HTTPS call fails until somebody runs
+`Install Certificates.command`. That script then failed too, because it writes into the system
+framework Python and he did not have permission.
+
+None of that is about this project, and all of it stood between a working key and a working
+song. So `trust()` now looks for a store itself, in the order that asks least of the reader:
+`truststore`, which uses the operating system's own store and so needs nothing installed or
+maintained; then `certifi`, the bundled list; then Python's default, which is correct on a
+machine that is already set up. Any failure falls through to the next rather than raising, and
+None means use the default.
+
+Both packages are optional, in a new `real` extra, because they are only needed to call a paid
+provider. On this machine `truststore` wins, which means the trust decision follows whatever
+the operating system already trusts rather than a list we ship and forget to update.
+
+A mutation test caught the version of this that looks most like working code: looking the
+context up and then not passing it to `urlopen`. There is now a test that spies on the call and
+asserts the context arrives.
+
+The pattern across decisions 19, 23 and this one is the same. Each was a step that read
+correctly and did not work when followed: a form that submits, a file that is read, a
+certificate that is found. Setup instructions are code, and untested code does not work.

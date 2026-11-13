@@ -15,9 +15,11 @@ Both fail loudly rather than quietly, on purpose.
 
 from __future__ import annotations
 
+import functools
 import io
 import json
 import re
+import ssl
 import urllib.error
 import urllib.request
 import uuid
@@ -80,13 +82,45 @@ class SpendCap:
         self.spent_usd = round(self.spent_usd - estimate_usd + actual_usd, 6)
 
 
+@functools.cache
+def trust() -> ssl.SSLContext | None:
+    """Where to look for the certificates that say a connection is really the provider.
+
+    The python.org build of Python on macOS ships without its certificate store connected, so
+    a plain HTTPS call fails with CERTIFICATE_VERIFY_FAILED until somebody runs a script that
+    needs permissions they may not have. Rather than make every reader solve that, we look for
+    a trust store ourselves, in the order that needs least of them:
+
+    1. `truststore`, which uses the operating system's own store (Keychain on macOS). Nothing
+       to install or maintain, and it follows whatever the machine already trusts.
+    2. `certifi`, the bundled list most of the Python world uses.
+    3. Python's default, which is what failed above but is right on a well set-up machine.
+
+    None means "use the default". Both packages are optional: `pip install -e ".[real]"`.
+    """
+    try:
+        import truststore
+
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception:  # noqa: BLE001 - any failure here just means try the next one
+        pass
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def default_transport(
     method: str, url: str, headers: dict[str, str], body: bytes, timeout: float = 180.0
 ) -> Reply:
     """The only thing here that opens a socket."""
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(  # noqa: S310
+            request, timeout=timeout, context=trust()
+        ) as response:
             return Reply(
                 status=response.status,
                 body=response.read(),
