@@ -336,7 +336,7 @@ music calls, so a crash in the HTTP layer still counts. A cap checked after the 
 cap.
 
 **`eval`, `demo` and `serve` cannot reach a real provider at all**, even with every setting in
-place. They construct fakes directly. One `eval` run is 30 songs end to end, which at roughly
+place. They construct fakes directly. (`serve` was wrong and is corrected in decision 24.) One `eval` run is 30 songs end to end, which at roughly
 1,230 credits a song is more than a month of Starter's 30,000. Making that command capable of
 spending money and relying on an environment variable to stop it is a mistake waiting for a
 tired evening. The only command that can spend is `mm check-provider`, which does one call and
@@ -373,3 +373,25 @@ in the file but commented out, so the act of enabling them is deliberate.
 The lesson, which is the same one as decision 19: the instructions were tested by reading them,
 not by following them. A step that says "put it in a file" is not done until something reads
 the file.
+
+
+## 24. `mm serve --real`: two gates, because serve is the product
+
+**Decided 13 Nov 2026, correcting decision 22.** Decision 22 made `serve` incapable of real
+music along with `eval` and `demo`. That was right for the other two and wrong for `serve`,
+which is the actual product and the thing being demonstrated on Dec 4. A demo of real music
+that cannot play real music is not a demo.
+
+`serve` now takes `--real`. Both the flag and the three settings are needed, so the environment
+alone cannot make a served page spend money and the flag alone cannot either. Two gates rather
+than one because this is the command that runs unattended in front of people, where a parent
+clicking a button is what spends the money rather than a developer typing a command.
+
+With `--real` and the settings missing it refuses to start. The alternative, falling back to
+fakes with a warning, means standing in front of an audience wondering why the audio is a test
+tone. Refusing is louder and kinder.
+
+`eval` and `demo` keep the decision 22 treatment and cannot reach a paid provider at all.
+
+The writer and the judge are still stand-ins even with `--real`, and the startup message says
+only that real music is on. Nothing here should let someone believe a model wrote the words.

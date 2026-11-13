@@ -184,11 +184,18 @@ On top of the pipeline's own `daily_budget_usd`, the adapters share one `SpendCa
 reserved before a call and settled after it, so a call that crashes mid-flight still counts and
 cannot be retried for free.
 
-`eval`, `demo` and `serve` are wired to the fakes in code and cannot reach a real provider even
-with all three set. This is deliberate: one `eval` run is 30 songs, which is more than a month
-of Starter credits. The only command that can spend money is `mm check-provider`, which makes
-one call, needs `--yes`, prints the estimate first, and saves the audio for a person to listen
-to.
+`eval` and `demo` are wired to the fakes in code and cannot reach a real provider even with all
+three set. This is deliberate: one `eval` run is 30 songs, which is more than a month of
+Starter credits, and `demo` exists to show the journey without a key.
+
+Two commands can spend money, and each needs a second gate on top of the three settings:
+
+- `mm check-provider --yes` makes one call, prints the estimate first, and saves the audio.
+- `mm serve --real` serves the real product. Without `--real` a served page is on fakes even
+  with every setting in place. With `--real` and the settings missing it refuses to start,
+  rather than serving a test tone to a watching audience.
+
+The writer and the judge are still stand-ins in both. Only music and the transcript are real.
 
 The music adapter also screens the prompt for brand and character names immediately before the
 request, after the pipeline has already screened the same text. The provider's terms forbid

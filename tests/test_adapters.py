@@ -471,3 +471,59 @@ def test_the_parser_skips_what_it_cannot_read_rather_than_guessing(line: str, ex
     from mm.env import parse_env
 
     assert parse_env(line) == expected
+
+
+# ---- serve can make real music, demo and eval cannot ----------------------------------------
+
+
+def test_serve_without_the_flag_is_on_fakes_even_with_the_settings_in_place(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """Two gates, not one: the environment alone must not make a served page spend money."""
+    from mm import cli
+
+    for name, value in FULLY_CONFIGURED.items():
+        monkeypatch.setenv(name, value)
+
+    def must_not_be_called(*args: object, **kwargs: object) -> object:
+        raise AssertionError("serve reached the paid provider without --real")
+
+    monkeypatch.setattr(cli, "_real_pipeline", must_not_be_called)
+    built: list[str] = []
+    real_fake = cli._fake_pipeline
+
+    def note_it(*args: object, **kwargs: object) -> object:
+        built.append("fake")
+        return real_fake(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(cli, "_fake_pipeline", note_it)
+    cli.build_site(tmp_path / "data", ["code-a"], ["team-a"])
+    assert built == ["fake"]
+
+
+def test_serve_with_the_flag_refuses_when_the_settings_are_missing(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """Better to refuse to start than to serve a test tone to a watching audience."""
+    from mm.adapters import SettingsError
+    from mm.cli import build_site
+
+    for name in FULLY_CONFIGURED:
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(SettingsError, match="not configured"):
+        build_site(tmp_path / "data", ["code-a"], ["team-a"], real=True)
+
+
+def test_serve_with_the_flag_and_the_settings_uses_the_real_music_provider(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    from mm.cli import _real_pipeline
+    from mm.controls import StaticControls
+    from mm.store import JsonDirStore
+
+    for name, value in FULLY_CONFIGURED.items():
+        monkeypatch.setenv(name, value)
+    pipeline = _real_pipeline(JsonDirStore(tmp_path / "data"), StaticControls())
+    assert pipeline.music.name == "elevenlabs"
+    assert pipeline.transcriber.name == "elevenlabs"
+    assert pipeline.writer.name == "fake", "the writer is still a stand-in; say so, do not hide it"

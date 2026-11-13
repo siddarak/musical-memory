@@ -176,14 +176,43 @@ def _eval(args: argparse.Namespace) -> int:
     return 1 if refused or stuck else 0
 
 
-def build_site(data: Path, codes: list[str], team: list[str] | None = None) -> Any:
-    """The web app on fake providers, saving songs and the event log under `data`."""
+def _real_pipeline(store: SongStore, controls: Controls, limits: Limits | None = None) -> Pipeline:
+    """The same pipeline, with a paid music provider in place of the fake one.
+
+    Raises SettingsError if the settings are not in place, rather than quietly serving fakes
+    while a demo audience watches and wonders why the audio is a test tone.
+    """
+    from mm.adapters import SettingsError, build_providers
+
+    music, transcriber = build_providers()
+    if music.name == "fake":
+        raise SettingsError(
+            "real providers were asked for but are not configured. Set MM_REAL_PROVIDERS=yes, "
+            "MM_SPEND_CAP_USD and ELEVENLABS_API_KEY in .env."
+        )
+    return Pipeline(
+        store=store,
+        writer=FakeWriter(),  # the writer and judge are still stand-ins; only music is real
+        judge=FakeJudge(),
+        music=music,
+        transcriber=transcriber,
+        inspector=WavInspector(),
+        controls=controls,
+        limits=limits,
+    )
+
+
+def build_site(
+    data: Path, codes: list[str], team: list[str] | None = None, *, real: bool = False
+) -> Any:
+    """The web app, songs and the event log under `data`. Fakes unless `real` is asked for."""
     from mm.web import create_app
     from mm.web.access import Allowlist
     from mm.web.events import JsonlEvents
     from mm.web.runner import ThreadRunner
 
-    pipeline = _fake_pipeline(JsonDirStore(data), EnvControls())
+    make = _real_pipeline if real else _fake_pipeline
+    pipeline = make(JsonDirStore(data), EnvControls())
     return create_app(
         pipeline=pipeline,
         participants=Allowlist(codes),
@@ -222,10 +251,22 @@ def _serve(args: argparse.Namespace) -> int:
     print(f"  {where}/studio/{team[0]}")
     print()
     print("Each link is a password. Anyone who has one can use it. Stop the server with Ctrl-C.")
-    print(FAKE_NOTE + " The audio is a test tone, not music.")
+    if args.real:
+        print(
+            "REAL MUSIC IS ON. Every song a parent makes costs money, against the cap in "
+            "MM_SPEND_CAP_USD.\n"
+            "An adult still has to listen to each song before a child hears it. That gate "
+            "does not move."
+        )
+    else:
+        print(FAKE_NOTE + " The audio is a test tone, not music.")
     print()
 
-    app = build_site(args.data, codes, team)
+    try:
+        app = build_site(args.data, codes, team, real=args.real)
+    except Exception as err:  # noqa: BLE001 - print the reason rather than a traceback
+        print(f"Cannot start: {err}")
+        return 2
     # The access log is off because every address contains a code.
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning", access_log=False)
     return 0
@@ -405,6 +446,11 @@ def main(argv: list[str] | None = None, *, env_file: Path | None = DEFAULT_PATH)
     serve.add_argument("--code", action="append", default=[], help="a participant code to accept")
     serve.add_argument(
         "--team-code", action="append", default=[], help="a code that opens the team view"
+    )
+    serve.add_argument(
+        "--real",
+        action="store_true",
+        help="use the paid music provider (needs the settings in .env; costs money per song)",
     )
     serve.set_defaults(run=_serve)
 
