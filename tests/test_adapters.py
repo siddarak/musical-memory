@@ -581,6 +581,7 @@ def test_an_error_with_nothing_to_say_still_names_its_type(good_lyrics: Lyrics):
     "message, expected",
     [
         ("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get issuer", "Install Certificates"),
+        ("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get issuer", "does not need rebuilding"),
         ("nodename nor servname provided", "DNS"),
         ("The read operation timed out", "timed out"),
         ("something nobody predicted", "Send me the line above"),
@@ -590,3 +591,13 @@ def test_the_hint_points_at_the_usual_cause(message: str, expected: str):
     from mm.cli import _hint
 
     assert expected in _hint(message)
+
+
+def test_the_certificate_hint_names_the_python_actually_running():
+    """A hint with the wrong version number sends a reader looking for a folder they lack."""
+    import sys
+
+    from mm.cli import _hint
+
+    hint = _hint("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate")
+    assert f"Python {sys.version_info.major}.{sys.version_info.minor}/" in hint

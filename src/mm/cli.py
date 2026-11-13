@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -329,17 +330,20 @@ def _codes(args: argparse.Namespace) -> int:
 def _hint(message: str) -> str:
     """Point at the usual cause, because a failure a reader cannot act on wastes their day."""
     if "CERTIFICATE_VERIFY" in message or "SSL" in message.upper():
+        version = f"{sys.version_info.major}.{sys.version_info.minor}"
         return (
             "\nThat is a certificate problem on this machine, not a problem with the key or\n"
-            "with our code. Python cannot verify the connection. On macOS, the usual fixes:\n"
-            "  1. Run the certificate installer that came with Python:\n"
-            '       open "/Applications/Python 3.13/Install Certificates.command"\n'
-            "     (change the version to match yours; look in /Applications for the folder)\n"
-            "  2. Or install Python with Homebrew, which brings its own certificates:\n"
-            "       brew install python@3.13\n"
-            "     then make the virtual environment again with that Python.\n"
-            "  3. Or, if you are on a university or office network that inspects traffic,\n"
-            "     try another network. That setup breaks certificate checks by design."
+            "with our code. Python cannot verify the connection. The usual fix on macOS, for\n"
+            "the Python you are running right now:\n"
+            f'       open "/Applications/Python {version}/Install Certificates.command"\n'
+            "  Then run this command again. The virtual environment does not need rebuilding.\n"
+            "\n"
+            "  If that folder does not exist, this does the same job for this window only:\n"
+            "       python -m pip install --upgrade certifi\n"
+            '       export SSL_CERT_FILE=$(python -c "import certifi; print(certifi.where())")\n'
+            "\n"
+            "  If you are on a network that inspects traffic, that breaks certificate checks\n"
+            "  by design. Try another network."
         )
     if "Name or service not known" in message or "nodename nor servname" in message:
         return "\nThat is a DNS failure. This machine cannot look up the address at all."
